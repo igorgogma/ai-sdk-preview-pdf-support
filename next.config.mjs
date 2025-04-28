@@ -7,9 +7,7 @@ const nextConfig = {
     staticRouteIndicator: false,
   },
   // Exclude client directory from the build
-  experimental: {
-    serverComponentsExternalPackages: [],
-  },
+  serverExternalPackages: [],
   // Ignore TypeScript errors in client directory
   typescript: {
     ignoreBuildErrors: true,
