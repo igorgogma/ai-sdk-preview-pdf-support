@@ -13,6 +13,19 @@ const config: Config = {
   			'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
   			'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))'
   		},
+  		animation: {
+  			'aurora': 'aurora 60s linear infinite',
+  		},
+  		keyframes: {
+  			aurora: {
+  				from: {
+  					'background-position': '50% 50%, 50% 50%'
+  				},
+  				to: {
+  					'background-position': '350% 50%, 350% 50%'
+  				},
+  			},
+  		},
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',

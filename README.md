@@ -1,41 +1,111 @@
-# AI SDK PDF Support Example
+# IB DP Study Helper
 
-This example demonstrates how to use the [AI SDK](https://sdk.vercel.ai/docs) with [Next.js](https://nextjs.org/) with the `useObject` hook to submit PDF messages to the AI provider of your choice (Google or Anthropic).
+A web application that helps IB DP students study Chemistry, Physics, and Biology by generating custom quizzes.
 
-## Deploy your own
+## Features
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Fai-sdk-preview-pdf-support&env=GOOGLE_API_KEY&envDescription=API%20keys%20needed%20for%20application&envLink=google.com)
+- **Science Quiz Generator**: Create custom quizzes on any IB DP science topic
+  - Adjustable quiz length (3-40 questions)
+  - Multiple difficulty levels (easy, medium, hard)
+  - Different question types (multiple choice, definition, problem-solving)
+  - Detailed explanations for all answers
 
-## How to use
+- **PDF Quiz Generator**: Upload a PDF to generate a quiz based on its content
+  - Automatically extracts key information from PDFs
+  - Creates multiple-choice questions
+  - Provides explanations for answers
 
-Run [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+## Getting Started
 
+### Prerequisites
+
+- Node.js (v18 or higher)
+- OpenRouter API key (for the Science Quiz Generator)
+
+### Installation
+
+1. Clone the repository:
 ```bash
-npx create-next-app --example https://github.com/vercel-labs/ai-sdk-preview-pdf-support ai-sdk-preview-pdf-support-example
+git clone <repository-url>
+cd ib-dp-study-helper
 ```
 
+2. Install dependencies:
 ```bash
-yarn create next-app --example https://github.com/vercel-labs/ai-sdk-preview-pdf-support ai-sdk-preview-pdf-support-example
+npm install
 ```
 
+3. Configure environment variables:
+- Edit the `.env.local` file
+- Add your OpenRouter API key to `.env.local` (see [OPENROUTER_SETUP.md](OPENROUTER_SETUP.md) for detailed instructions)
+
+4. Start the development server:
 ```bash
-pnpm create next-app --example https://github.com/vercel-labs/ai-sdk-preview-pdf-support ai-sdk-preview-pdf-support-example
+# Using npm
+npm run dev
 ```
 
-To run the example locally you need to:
+5. Check if the application is running:
+```bash
+# Using Node.js
+node check-app.js
+```
 
-1. Sign up for accounts with the AI providers you want to use (e.g., Google).
-2. Obtain API keys for Google provider.
-3. Set the required environment variables as shown in the `.env.example` file, but in a new file called `.env`.
-4. `npm install` to install the required dependencies.
-5. `npm run dev` to launch the development server.
+The application will be available at http://localhost:3000
 
+### About the Science Quiz Generator
 
-## Learn More
+The Science Quiz Generator uses the OpenRouter API to generate educational quiz questions. It has a fallback mechanism that uses mock data if the API call fails. This means:
 
-To learn more about Vercel AI SDK or Next.js take a look at the following resources:
+1. You need an OpenRouter API key in the `.env.local` file to get real educational content
+2. If the API call fails, you'll get generic placeholder questions based on your selected topic
+3. The application will work reliably even if there are API issues
 
-- [AI SDK docs](https://sdk.vercel.ai/docs)
-- [Vercel AI Playground](https://play.vercel.ai)
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+### Troubleshooting
 
+If you encounter any errors:
+
+1. Try refreshing the page if you see any UI errors
+2. Check the browser console for error messages
+3. If you see toast notification errors, try using the application without clicking the toast notifications
+4. The PDF Quiz Generator still requires an API key for Google's Gemini Pro
+
+### Important Note
+
+This application is designed to run in development mode. Production builds may encounter issues due to the experimental nature of some of the features used.
+
+If you encounter any issues, please use the development server instead of trying to build for production.
+
+## Technologies Used
+
+- Next.js
+- React
+- Tailwind CSS
+- OpenRouter API (for LLM integration)
+- Google's Gemini Pro (for PDF processing)
+
+## Project Structure
+
+```
+ib-dp-study-helper/
+├── app/                   # Next.js app directory
+│   ├── api/              # API routes
+│   ├── science-quiz/     # Science quiz generator
+│   ├── pdf-quiz/         # PDF quiz generator
+│   └── page.tsx          # Home page
+├── components/           # Reusable UI components
+│   ├── ui/               # UI components
+│   ├── science-quiz.tsx  # Science quiz component
+│   └── quiz.tsx          # PDF quiz component
+└── lib/                  # Utility functions and schemas
+```
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

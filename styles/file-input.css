@@ -1,0 +1,12 @@
+/* Custom styles for file input */
+input[type="file"]::file-selector-button {
+  display: none;
+}
+
+input[type="file"]::-webkit-file-upload-button {
+  display: none;
+}
+
+input[type="file"]::-ms-browse {
+  display: none;
+}
