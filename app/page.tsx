@@ -67,7 +67,7 @@ export default function HomePage() {
             </CardHeader>
             <CardContent className="flex justify-center pb-8">
               <Button asChild className="w-full">
-                <Link href="/pdf-quiz">Get Started</Link>
+                <Link href="/preview">Get Started</Link>
               </Button>
             </CardContent>
           </Card>
