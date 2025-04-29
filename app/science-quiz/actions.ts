@@ -22,13 +22,22 @@ export async function generateScienceQuiz(params: QuizParams) {
     // Validate the parameters
     const validatedParams = quizParamsSchema.parse(params);
 
-    // Call our API route with a relative URL
-    const response = await fetch(`/api/generate-science-quiz`, {
+    // For server actions, we need to use the full URL
+    // First, get the base URL from environment variables or use a default
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ||
+                   (typeof window !== 'undefined' ? window.location.origin : 'https://ib-dp-study-helper.vercel.app');
+
+    console.log("Using base URL for API call:", baseUrl);
+
+    // Use the full URL for the API endpoint
+    const response = await fetch(`${baseUrl}/api/generate-science-quiz`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(validatedParams),
+      // Add cache control to prevent caching issues
+      cache: "no-store",
     });
 
     if (!response.ok) {
@@ -58,13 +67,22 @@ export async function generateScienceQuiz(params: QuizParams) {
 // Function to check generation progress
 export async function checkGenerationProgress(generationId: string) {
   try {
-    // Call our API route with a relative URL
-    const response = await fetch(`/api/check-generation`, {
+    // For server actions, we need to use the full URL
+    // First, get the base URL from environment variables or use a default
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ||
+                   (typeof window !== 'undefined' ? window.location.origin : 'https://ib-dp-study-helper.vercel.app');
+
+    console.log("Using base URL for progress check:", baseUrl);
+
+    // Use the full URL for the API endpoint
+    const response = await fetch(`${baseUrl}/api/check-generation`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ generationId }),
+      // Add cache control to prevent caching issues
+      cache: "no-store",
     });
 
     if (!response.ok) {
