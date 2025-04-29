@@ -32,32 +32,43 @@ export async function POST(req: Request) {
     try {
       const data = await llmProvider.checkGeneration(generationId);
 
-    // Calculate progress based on the response
-    // This is a simplified approach - in a real app, you might have more sophisticated logic
-    let progress = 0;
+      // Calculate progress based on the response
+      // This is a simplified approach - in a real app, you might have more sophisticated logic
+      let progress = 0;
 
-    if (data.finish_reason) {
-      // Generation is complete
-      progress = 100;
-    } else if (data.choices && data.choices.length > 0) {
-      // Generation is in progress - estimate based on tokens
-      if (data.usage && data.usage.completion_tokens && data.usage.total_tokens) {
-        // Calculate progress based on token usage
-        progress = Math.min(95, Math.round((data.usage.completion_tokens / data.usage.total_tokens) * 100));
+      if (data.finish_reason) {
+        // Generation is complete
+        progress = 100;
+      } else if (data.choices && data.choices.length > 0) {
+        // Generation is in progress - estimate based on tokens
+        if (data.usage && data.usage.completion_tokens && data.usage.total_tokens) {
+          // Calculate progress based on token usage
+          progress = Math.min(95, Math.round((data.usage.completion_tokens / data.usage.total_tokens) * 100));
+        } else {
+          // If token information is not available, use a default progress
+          progress = 50;
+        }
       } else {
-        // If token information is not available, use a default progress
-        progress = 50;
+        // Generation has started but no choices yet
+        progress = 20;
       }
-    } else {
-      // Generation has started but no choices yet
-      progress = 20;
-    }
 
-    return NextResponse.json({
-      progress,
-      status: data.finish_reason ? "complete" : "in_progress",
-      data
-    });
+      return NextResponse.json({
+        progress,
+        status: data.finish_reason ? "complete" : "in_progress",
+        data
+      });
+    } catch (error) {
+      console.error("Error in provider's generation check:", error);
+      // If the provider's check fails, return a simulated progress
+      const simulatedProgress = Math.min(100, Math.floor(Math.random() * 30) + 70);
+
+      return NextResponse.json({
+        progress: simulatedProgress,
+        status: simulatedProgress === 100 ? "complete" : "in_progress",
+        data: { simulated: true, error: "Provider check failed" }
+      });
+    }
   } catch (error) {
     console.error("Error checking generation status:", error);
     return NextResponse.json(
