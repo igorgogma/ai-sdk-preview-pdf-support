@@ -9,13 +9,7 @@
     }
   },
   "env": {
-    "NEXT_PUBLIC_APP_URL": {
-      "description": "The public URL of your application",
-      "value": "https://ib-dp-study-helper.vercel.app"
-    },
-    "LLM_PROVIDER": {
-      "description": "The LLM provider to use (openrouter or gemini)",
-      "value": "openrouter"
-    }
+    "NEXT_PUBLIC_APP_URL": "https://ib-dp-study-helper.vercel.app",
+    "LLM_PROVIDER": "openrouter"
   }
 }
