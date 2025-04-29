@@ -27,7 +27,11 @@ export async function POST(req: Request) {
     // Try to get additional context from Exa search
     let additionalContext = "";
     try {
-      const searchResponse = await fetch(`/api/exa-search`, {
+      const baseUrl = process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : process.env.NEXT_PUBLIC_APP_URL || 'https://ib-dp-study-helper.vercel.app';
+
+      const searchResponse = await fetch(`${baseUrl}/api/exa-search`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

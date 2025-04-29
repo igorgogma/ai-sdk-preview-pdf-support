@@ -22,8 +22,12 @@ export async function generateScienceQuiz(params: QuizParams) {
     // Validate the parameters
     const validatedParams = quizParamsSchema.parse(params);
 
-    // Call our API route with a relative URL
-    const response = await fetch(`/api/generate-science-quiz`, {
+    // Call our API route with an absolute URL
+    const baseUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : process.env.NEXT_PUBLIC_APP_URL || 'https://ib-dp-study-helper.vercel.app';
+
+    const response = await fetch(`${baseUrl}/api/generate-science-quiz`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -58,8 +62,12 @@ export async function generateScienceQuiz(params: QuizParams) {
 // Function to check generation progress
 export async function checkGenerationProgress(generationId: string) {
   try {
-    // Call our API route with a relative URL
-    const response = await fetch(`/api/check-generation`, {
+    // Call our API route with an absolute URL
+    const baseUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : process.env.NEXT_PUBLIC_APP_URL || 'https://ib-dp-study-helper.vercel.app';
+
+    const response = await fetch(`${baseUrl}/api/check-generation`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
