@@ -28,7 +28,12 @@ export async function POST(req: Request) {
     // Try to get additional context from Exa search
     let additionalContext = "";
     try {
-      const searchResponse = await fetch(`/api/exa-search`, {
+      // Construct a proper URL for the Exa search API
+      const exaSearchUrl = new URL('/api/exa-search', process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').toString();
+
+      console.log("Using Exa search URL:", exaSearchUrl);
+
+      const searchResponse = await fetch(exaSearchUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -275,7 +280,26 @@ export async function POST(req: Request) {
           text: data.choices[0]?.message?.content || "",
           json: () => {
             try {
-              return JSON.parse(data.choices[0]?.message?.content || "{}");
+              const content = data.choices[0]?.message?.content || "{}";
+
+              // Check if the content is wrapped in markdown code blocks
+              if (content.includes("```json") || content.includes("```")) {
+                console.log("Detected markdown code blocks in OpenRouter response");
+
+                // Try to extract JSON from markdown
+                const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) ||
+                                 content.match(/```\n([\s\S]*?)\n```/) ||
+                                 content.match(/{[\s\S]*}/);
+
+                if (jsonMatch) {
+                  const extractedJson = jsonMatch[1] || jsonMatch[0];
+                  console.log("Extracted JSON from markdown:", extractedJson.substring(0, 100) + "...");
+                  return JSON.parse(extractedJson);
+                }
+              }
+
+              // If no markdown or extraction failed, try parsing directly
+              return JSON.parse(content);
             } catch (error) {
               console.error("Error parsing JSON from OpenRouter response:", error);
               return {};
@@ -297,128 +321,164 @@ export async function POST(req: Request) {
       try {
         let parsedContent;
 
-        // Check if the response has the expected structure
-        if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
+        // Check if we have data from the response
+        if (data && typeof data === 'object') {
           try {
-            // Clean the content by removing markdown code blocks if present
-            let content = data.choices[0].message.content;
-
-            // Remove markdown code blocks if present (```json ... ```)
-            if (content.startsWith("```") && content.endsWith("```")) {
-              // Extract the content between the first ``` and the last ```
-              content = content.substring(content.indexOf('\n') + 1, content.lastIndexOf('```')).trim();
+            // If data already has a questions array, use it directly
+            if (data.questions && Array.isArray(data.questions)) {
+              parsedContent = data;
+              console.log("Found questions array directly in response");
             }
+            // If data has choices (OpenRouter format)
+            else if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
+              // Clean the content by removing markdown code blocks if present
+              let content = data.choices[0].message.content;
 
-            console.log("Cleaned content:", content.substring(0, 100) + "...");
+              // Remove markdown code blocks if present (```json ... ```)
+              if (content.startsWith("```") && content.endsWith("```")) {
+                // Extract the content between the first ``` and the last ```
+                content = content.substring(content.indexOf('\n') + 1, content.lastIndexOf('```')).trim();
+              }
 
-            // Fix escaped backslashes in LaTeX before parsing JSON
-            // This is a common issue with LaTeX in JSON
-            try {
-              // First attempt: Try to parse as is
-              parsedContent = JSON.parse(content);
-            } catch (initialParseError) {
-              console.log("Initial parse failed, attempting to fix LaTeX backslashes");
+              console.log("Cleaned content:", content.substring(0, 100) + "...");
 
+              // Fix escaped backslashes in LaTeX before parsing JSON
+              // This is a common issue with LaTeX in JSON
               try {
-                // Second attempt: Try to fix common LaTeX escaping issues
-                // Replace \\ with a temporary placeholder
-                let fixedContent = content.replace(/\\\\/g, "DOUBLE_BACKSLASH_PLACEHOLDER");
+                // First attempt: Try to parse as is
+                parsedContent = JSON.parse(content);
+              } catch (initialParseError) {
+                console.log("Initial parse failed, attempting to fix LaTeX backslashes");
 
-                // Replace single backslashes that are likely part of LaTeX with double backslashes
-                fixedContent = fixedContent.replace(/\\([a-zA-Z]+|[^a-zA-Z])/g, "\\\\$1");
-
-                // Restore original double backslashes
-                fixedContent = fixedContent.replace(/DOUBLE_BACKSLASH_PLACEHOLDER/g, "\\\\");
-
-                console.log("Attempting to parse fixed content");
-                parsedContent = JSON.parse(fixedContent);
-              } catch (fixedParseError) {
-                console.error("Fixed parse also failed:", fixedParseError);
-
-                // Third attempt: Manual JSON parsing as a last resort
                 try {
-                  console.log("Attempting manual extraction of questions");
+                  // Second attempt: Try to fix common LaTeX escaping issues
+                  // Replace \\ with a temporary placeholder
+                  let fixedContent = content.replace(/\\\\/g, "DOUBLE_BACKSLASH_PLACEHOLDER");
 
-                  // Extract questions array using regex
-                  const questionsMatch = content.match(/"questions"\s*:\s*\[([\s\S]*?)\]\s*\}/);
+                  // Replace single backslashes that are likely part of LaTeX with double backslashes
+                  fixedContent = fixedContent.replace(/\\([a-zA-Z]+|[^a-zA-Z])/g, "\\\\$1");
 
-                  if (questionsMatch && questionsMatch[1]) {
-                    const questionsContent = questionsMatch[1];
+                  // Restore original double backslashes
+                  fixedContent = fixedContent.replace(/DOUBLE_BACKSLASH_PLACEHOLDER/g, "\\\\");
 
-                    // Split by question objects
-                    const questionObjects = questionsContent.split(/\},\s*\{/).map((q: string, i: number) => {
-                      // Add back the curly braces except for first and last
-                      if (i === 0) return q + '}';
-                      if (i === questionsContent.split(/\},\s*\{/).length - 1) return '{' + q;
-                      return '{' + q + '}';
-                    });
+                  console.log("Attempting to parse fixed content");
+                  parsedContent = JSON.parse(fixedContent);
+                } catch (fixedParseError) {
+                  console.error("Fixed parse also failed:", fixedParseError);
 
-                    // Parse each question individually
-                    const questions = [];
-                    for (const qObj of questionObjects) {
-                      try {
-                        // Extract fields using regex
-                        const typeMatch = qObj.match(/"type"\s*:\s*"([^"]+)"/);
-                        const questionMatch = qObj.match(/"question"\s*:\s*"([^"]+)"/);
-                        const correctAnswerMatch = qObj.match(/"correctAnswer"\s*:\s*"([^"]+)"/);
-                        const explanationMatch = qObj.match(/"explanation"\s*:\s*"([^"]+)"/);
+                  // Third attempt: Manual JSON parsing as a last resort
+                  try {
+                    console.log("Attempting manual extraction of questions");
 
-                        // For multiple choice, extract options
-                        const optionsMatch = qObj.match(/"options"\s*:\s*\[([\s\S]*?)\]/);
-                        let options = [];
+                    // Extract questions array using regex
+                    const questionsMatch = content.match(/"questions"\s*:\s*\[([\s\S]*?)\]\s*\}/);
 
-                        if (optionsMatch && optionsMatch[1]) {
-                          options = optionsMatch[1].split(/",\s*"/).map((opt: string) => {
-                            return opt.replace(/^"/, '').replace(/"$/, '');
-                          });
+                    if (questionsMatch && questionsMatch[1]) {
+                      const questionsContent = questionsMatch[1];
+
+                      // Split by question objects
+                      const questionObjects = questionsContent.split(/\},\s*\{/).map((q: string, i: number) => {
+                        // Add back the curly braces except for first and last
+                        if (i === 0) return q + '}';
+                        if (i === questionsContent.split(/\},\s*\{/).length - 1) return '{' + q;
+                        return '{' + q + '}';
+                      });
+
+                      // Parse each question individually
+                      const questions = [];
+                      for (const qObj of questionObjects) {
+                        try {
+                          // Extract fields using regex
+                          const typeMatch = qObj.match(/"type"\s*:\s*"([^"]+)"/);
+                          const questionMatch = qObj.match(/"question"\s*:\s*"([^"]+)"/);
+                          const correctAnswerMatch = qObj.match(/"correctAnswer"\s*:\s*"([^"]+)"/);
+                          const explanationMatch = qObj.match(/"explanation"\s*:\s*"([^"]+)"/);
+
+                          // For multiple choice, extract options
+                          const optionsMatch = qObj.match(/"options"\s*:\s*\[([\s\S]*?)\]/);
+                          let options = [];
+
+                          if (optionsMatch && optionsMatch[1]) {
+                            options = optionsMatch[1].split(/",\s*"/).map((opt: string) => {
+                              return opt.replace(/^"/, '').replace(/"$/, '');
+                            });
+                          }
+
+                          // Create question object with proper typing
+                          const question: {
+                            type: string;
+                            question: string;
+                            correctAnswer: string;
+                            explanation: string;
+                            options?: string[];
+                          } = {
+                            type: typeMatch ? typeMatch[1] : "unknown",
+                            question: questionMatch ? questionMatch[1].replace(/\\"/g, '"') : "Unknown question",
+                            correctAnswer: correctAnswerMatch ? correctAnswerMatch[1] : "",
+                            explanation: explanationMatch ? explanationMatch[1].replace(/\\"/g, '"') : ""
+                          };
+
+                          if (options.length > 0) {
+                            question.options = options;
+                          }
+
+                          questions.push(question);
+                        } catch (qError) {
+                          console.error("Error parsing individual question:", qError);
                         }
-
-                        // Create question object with proper typing
-                        const question: {
-                          type: string;
-                          question: string;
-                          correctAnswer: string;
-                          explanation: string;
-                          options?: string[];
-                        } = {
-                          type: typeMatch ? typeMatch[1] : "unknown",
-                          question: questionMatch ? questionMatch[1].replace(/\\"/g, '"') : "Unknown question",
-                          correctAnswer: correctAnswerMatch ? correctAnswerMatch[1] : "",
-                          explanation: explanationMatch ? explanationMatch[1].replace(/\\"/g, '"') : ""
-                        };
-
-                        if (options.length > 0) {
-                          question.options = options;
-                        }
-
-                        questions.push(question);
-                      } catch (qError) {
-                        console.error("Error parsing individual question:", qError);
                       }
-                    }
 
-                    if (questions.length > 0) {
-                      parsedContent = { questions };
+                      if (questions.length > 0) {
+                        parsedContent = { questions };
+                      } else {
+                        throw new Error("Failed to extract any questions");
+                      }
                     } else {
-                      throw new Error("Failed to extract any questions");
+                      throw new Error("Could not find questions array");
                     }
-                  } else {
-                    throw new Error("Could not find questions array");
+                  } catch (manualError) {
+                    console.error("Manual extraction failed:", manualError);
+                    throw initialParseError; // Throw the original error
                   }
-                } catch (manualError) {
-                  console.error("Manual extraction failed:", manualError);
-                  throw initialParseError; // Throw the original error
                 }
+              }
+            } else {
+              // If we can't find a standard structure, check if the response itself is the content
+              console.log("Non-standard response structure, checking if response is directly usable");
+
+              if (typeof response.text === 'string' && response.text.includes('"questions"')) {
+                try {
+                  // Try to parse the text directly
+                  const directContent = response.text;
+
+                  // Check for JSON in markdown
+                  const jsonMatch = directContent.match(/```json\n([\s\S]*?)\n```/) ||
+                                   directContent.match(/```\n([\s\S]*?)\n```/) ||
+                                   directContent.match(/{[\s\S]*}/);
+
+                  if (jsonMatch) {
+                    const extractedJson = jsonMatch[1] || jsonMatch[0];
+                    parsedContent = JSON.parse(extractedJson);
+                    console.log("Extracted content directly from response text");
+                  } else {
+                    throw new Error("Could not extract JSON from response text");
+                  }
+                } catch (directParseError) {
+                  console.error("Direct parse failed:", directParseError);
+                  throw new Error("Failed to parse response in any format");
+                }
+              } else {
+                console.error("Unexpected API response structure:", data);
+                throw new Error("Unexpected API response structure");
               }
             }
           } catch (parseError) {
             console.error("Error parsing message content:", parseError);
-            console.log("Raw content:", data.choices[0].message.content);
             throw new Error("Failed to parse message content");
           }
         } else {
-          console.error("Unexpected API response structure:", data);
-          throw new Error("Unexpected API response structure");
+          console.error("Empty or invalid API response:", data);
+          throw new Error("Empty or invalid API response");
         }
 
         // Check if questions array exists
