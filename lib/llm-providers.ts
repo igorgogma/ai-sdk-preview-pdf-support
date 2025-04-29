@@ -1,7 +1,7 @@
 // Remove the "use server" directive from this file since it's a utility library
 // that will be used by both server and client components
 
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Define the common interface for all LLM providers
 export interface LLMProviderResponse {
@@ -90,10 +90,10 @@ export class OpenRouterProvider implements LLMProvider {
 
 // Gemini implementation
 export class GeminiProvider implements LLMProvider {
-  private genAI: GoogleGenAI;
+  private genAI: GoogleGenerativeAI;
 
   constructor() {
-    this.genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   }
 
   async generateContent(prompt: string, systemPrompt: string, options: any = {}): Promise<LLMProviderResponse> {
@@ -101,7 +101,7 @@ export class GeminiProvider implements LLMProvider {
 
     try {
       // Get the model
-      const model = this.genAI.models.get({
+      const model = this.genAI.getGenerativeModel({
         model: options.model || "gemini-1.5-flash-001"
       });
 
