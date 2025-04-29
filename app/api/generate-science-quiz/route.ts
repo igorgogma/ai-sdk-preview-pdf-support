@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     // Try to get additional context from Exa search
     let additionalContext = "";
     try {
-      const searchResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/exa-search`, {
+      const searchResponse = await fetch(`/api/exa-search`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -168,11 +168,11 @@ export async function POST(req: Request) {
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+          "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://ib-dp-study-helper.vercel.app",
           "X-Title": "IB Science Quiz Generator",
         },
         body: JSON.stringify({
-          model: "meta-llama/llama-4-scout:free", 
+          model: "meta-llama/llama-4-scout:free",
           messages: [
             {
               role: "system",

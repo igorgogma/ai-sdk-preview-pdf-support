@@ -1,0 +1,11 @@
+{
+  "buildCommand": "next build",
+  "outputDirectory": ".next",
+  "cleanUrls": true,
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./ ./app/preview",
+  "git": {
+    "deploymentEnabled": {
+      "main": true
+    }
+  }
+}

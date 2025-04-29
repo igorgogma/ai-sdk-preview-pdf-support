@@ -10,14 +10,14 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { generationId } = generationCheckSchema.parse(body);
-    
+
     // Call OpenRouter API to check generation status
     const response = await fetch(`https://openrouter.ai/api/v1/generation?id=${generationId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+        "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://ib-dp-study-helper.vercel.app",
         "X-Title": "IB Science Quiz Generator",
       },
     });
@@ -32,11 +32,11 @@ export async function POST(req: Request) {
     }
 
     const data = await response.json();
-    
+
     // Calculate progress based on the response
     // This is a simplified approach - in a real app, you might have more sophisticated logic
     let progress = 0;
-    
+
     if (data.finish_reason) {
       // Generation is complete
       progress = 100;
@@ -53,8 +53,8 @@ export async function POST(req: Request) {
       // Generation has started but no choices yet
       progress = 20;
     }
-    
-    return NextResponse.json({ 
+
+    return NextResponse.json({
       progress,
       status: data.finish_reason ? "complete" : "in_progress",
       data
