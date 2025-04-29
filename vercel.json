@@ -10,6 +10,6 @@
   },
   "env": {
     "NEXT_PUBLIC_APP_URL": "https://ib-dp-study-helper.vercel.app",
-    "LLM_PROVIDER": "openrouter"
+    "LLM_PROVIDER": "replicate"
   }
 }

@@ -1,7 +1,7 @@
 // Remove the "use server" directive from this file since it's a utility library
 // that will be used by both server and client components
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import Replicate from 'replicate';
 
 // Define the common interface for all LLM providers
 export interface LLMProviderResponse {
@@ -90,117 +90,138 @@ export class OpenRouterProvider implements LLMProvider {
   }
 }
 
-// Gemini implementation
-export class GeminiProvider implements LLMProvider {
-  private genAI: GoogleGenerativeAI;
-  private streamingResponses: Map<string, {
+// Replicate implementation
+export class ReplicateProvider implements LLMProvider {
+  private replicate: Replicate;
+  private activeGenerations: Map<string, {
     progress: number,
     content: string,
     isComplete: boolean,
-    lastUpdated: number
+    lastUpdated: number,
+    replicatePredictionId?: string
   }>;
 
   constructor() {
-    this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    this.streamingResponses = new Map();
+    this.replicate = new Replicate({
+      auth: process.env.REPLICATE_API_KEY,
+    });
+    this.activeGenerations = new Map();
 
-    // Start a cleanup interval to remove old streaming responses
+    // Start a cleanup interval to remove old generation data
     setInterval(() => {
       const now = Date.now();
-      for (const [id, data] of this.streamingResponses.entries()) {
+      for (const [id, data] of this.activeGenerations.entries()) {
         // Remove entries older than 5 minutes
         if (now - data.lastUpdated > 5 * 60 * 1000) {
-          this.streamingResponses.delete(id);
+          this.activeGenerations.delete(id);
         }
       }
     }, 60 * 1000); // Run cleanup every minute
   }
 
   async generateContent(prompt: string, systemPrompt: string, options: any = {}): Promise<LLMProviderResponse> {
-    console.log("Using Gemini API");
+    console.log("Using Replicate API");
 
     try {
-      // Get the model
-      const model = this.genAI.getGenerativeModel({
-        model: options.model || "gemini-1.5-flash-001"
-      });
-
-      // Combine system prompt and user prompt
-      const combinedPrompt = `${systemPrompt}\n\n${prompt}`;
+      // Default model is Llama 3 70B
+      const model = options.model || "meta/llama-3-70b-instruct:2d19859030ff705a87c746f7e96eea03aefb71f166725aee39692f1476566d48";
 
       // Generate a unique ID for this request
-      const generationId = `gemini-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      const generationId = `replicate-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
-      // Initialize the streaming response entry
-      this.streamingResponses.set(generationId, {
+      // Initialize the generation entry
+      this.activeGenerations.set(generationId, {
         progress: 0,
         content: "",
         isComplete: false,
         lastUpdated: Date.now()
       });
 
-      // Start streaming in the background
-      this.streamContentInBackground(model, combinedPrompt, generationId, options);
+      // Create input with system prompt and user prompt
+      const input = {
+        prompt: `${systemPrompt}\n\n${prompt}`,
+        system_prompt: systemPrompt,
+        temperature: options.temperature || 0.7,
+        top_p: options.topP || 0.95,
+        max_tokens: options.maxOutputTokens || 4096,
+        prompt_template: "{system_prompt}\n\n{prompt}"
+      };
 
-      // Generate content (non-streaming for the actual response)
-      const result = await model.generateContent({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { text: combinedPrompt }
-            ]
-          }
-        ],
-        generationConfig: {
-          temperature: options.temperature || 0.7,
-          topK: options.topK || 40,
-          topP: options.topP || 0.95,
-          maxOutputTokens: options.maxOutputTokens || 8192,
-          responseSchema: options.responseSchema,
-        },
+      // Start a prediction and get the ID
+      const prediction = await this.replicate.predictions.create({
+        version: model.includes(":") ? model.split(":")[1] : model,
+        input: input,
       });
 
-      // Mark the streaming as complete
-      const streamingData = this.streamingResponses.get(generationId);
-      if (streamingData) {
-        streamingData.isComplete = true;
-        streamingData.progress = 100;
-        streamingData.lastUpdated = Date.now();
-        this.streamingResponses.set(generationId, streamingData);
+      // Store the prediction ID
+      const currentData = this.activeGenerations.get(generationId);
+      if (currentData) {
+        this.activeGenerations.set(generationId, {
+          ...currentData,
+          replicatePredictionId: prediction.id,
+          lastUpdated: Date.now()
+        });
       }
 
-      const response = result.response;
-      const text = response.text();
+      // Wait for the prediction to complete
+      const result = await this.replicate.wait(prediction);
+
+      // Mark the generation as complete
+      const generationData = this.activeGenerations.get(generationId);
+      if (generationData) {
+        this.activeGenerations.set(generationId, {
+          progress: 100,
+          content: typeof result.output === 'string' ? result.output : JSON.stringify(result.output),
+          isComplete: true,
+          lastUpdated: Date.now(),
+          replicatePredictionId: prediction.id
+        });
+      }
+
+      // Get the output text
+      let outputText = "";
+      if (Array.isArray(result.output)) {
+        // If output is an array of strings, join them
+        outputText = result.output.join("");
+      } else if (typeof result.output === 'string') {
+        // If output is a string, use it directly
+        outputText = result.output;
+      } else {
+        // If output is an object or other type, stringify it
+        outputText = JSON.stringify(result.output);
+      }
 
       // For debugging
-      console.log("Gemini response text (first 100 chars):", text.substring(0, 100));
+      console.log("Replicate response text (first 100 chars):", outputText.substring(0, 100));
 
       // Try to parse as JSON first
       try {
-        const jsonData = JSON.parse(text);
+        // Check if the output is already a JSON object
+        const jsonData = typeof result.output === 'object' && result.output !== null
+          ? result.output
+          : JSON.parse(outputText);
 
         // Format the response to match our common interface
         return {
-          text: text,
+          text: outputText,
           json: () => jsonData,
-          id: generationId // Add the generation ID to the response
+          id: generationId
         };
       } catch (error) {
         console.log("Response is not valid JSON, returning text format");
 
         // If not valid JSON, try to extract JSON from the text (in case it's wrapped in markdown)
-        const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) ||
-                         text.match(/```\n([\s\S]*?)\n```/) ||
-                         text.match(/{[\s\S]*}/);
+        const jsonMatch = outputText.match(/```json\n([\s\S]*?)\n```/) ||
+                         outputText.match(/```\n([\s\S]*?)\n```/) ||
+                         outputText.match(/{[\s\S]*}/);
 
         if (jsonMatch) {
           try {
             const extractedJson = JSON.parse(jsonMatch[1] || jsonMatch[0]);
             return {
-              text: text,
+              text: outputText,
               json: () => extractedJson,
-              id: generationId // Add the generation ID to the response
+              id: generationId
             };
           } catch (extractError) {
             console.error("Error parsing extracted JSON:", extractError);
@@ -209,32 +230,75 @@ export class GeminiProvider implements LLMProvider {
 
         // Fallback to returning the text with a dummy json function
         return {
-          text: text,
+          text: outputText,
           json: () => ({
             choices: [{
               message: {
-                content: text
+                content: outputText
               }
             }]
           }),
-          id: generationId // Add the generation ID to the response
+          id: generationId
         };
       }
-    } catch (error) {
-      console.error("Gemini API error:", error);
-      throw new Error(`Gemini API error: ${error.message || "Unknown error"}`);
+    } catch (error: any) {
+      console.error("Replicate API error:", error);
+      throw new Error(`Replicate API error: ${error?.message || "Unknown error"}`);
     }
   }
 
   // Check the generation progress
   async checkGeneration(generationId: string): Promise<any> {
     // Check if we have this generation ID in our map
-    if (this.streamingResponses.has(generationId)) {
-      const data = this.streamingResponses.get(generationId);
+    if (this.activeGenerations.has(generationId)) {
+      const data = this.activeGenerations.get(generationId)!;
 
       // Update the last accessed time
       data.lastUpdated = Date.now();
-      this.streamingResponses.set(generationId, data);
+
+      // If we have a Replicate prediction ID, check the actual progress
+      if (data.replicatePredictionId && !data.isComplete) {
+        try {
+          const prediction = await this.replicate.predictions.get(data.replicatePredictionId);
+
+          // Update progress based on status
+          let progress = data.progress;
+
+          if (prediction.status === "succeeded") {
+            progress = 100;
+            data.isComplete = true;
+            data.content = typeof prediction.output === 'string'
+              ? prediction.output
+              : JSON.stringify(prediction.output);
+          } else if (prediction.status === "processing") {
+            // Estimate progress based on logs if available
+            if (prediction.logs) {
+              // Count the number of log lines as a rough progress indicator
+              const logLines = prediction.logs.split('\n').filter(line => line.trim().length > 0);
+              progress = Math.min(95, Math.max(data.progress, Math.round((logLines.length / 20) * 100)));
+            } else {
+              // If no logs, increment progress slightly
+              progress = Math.min(90, data.progress + 5);
+            }
+          } else if (prediction.status === "starting") {
+            progress = Math.min(30, data.progress + 5);
+          } else if (prediction.status === "failed") {
+            progress = 100;
+            data.isComplete = true;
+          }
+
+          // Update the data
+          this.activeGenerations.set(generationId, {
+            progress,
+            content: data.content,
+            isComplete: data.isComplete,
+            lastUpdated: Date.now(),
+            replicatePredictionId: data.replicatePredictionId
+          });
+        } catch (error) {
+          console.error("Error checking Replicate prediction:", error);
+        }
+      }
 
       // Return a response that matches the expected format
       return {
@@ -267,96 +331,35 @@ export class GeminiProvider implements LLMProvider {
       };
     }
   }
-
-  // Stream content in the background to track progress
-  private async streamContentInBackground(model: any, prompt: string, generationId: string, options: any = {}) {
-    try {
-      // Start streaming
-      const streamingResponse = await model.generateContentStream({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { text: prompt }
-            ]
-          }
-        ],
-        generationConfig: {
-          temperature: options.temperature || 0.7,
-          topK: options.topK || 40,
-          topP: options.topP || 0.95,
-          maxOutputTokens: options.maxOutputTokens || 8192,
-        },
-      });
-
-      let accumulatedText = "";
-      let chunkCount = 0;
-      const estimatedTotalChunks = 20; // This is an estimate, adjust based on your observations
-
-      // Process each chunk as it arrives
-      for await (const chunk of streamingResponse) {
-        chunkCount++;
-
-        // Get the text from the chunk
-        const chunkText = chunk.text || "";
-        accumulatedText += chunkText;
-
-        // Calculate progress (this is an estimate)
-        const progress = Math.min(95, Math.round((chunkCount / estimatedTotalChunks) * 100));
-
-        // Update the streaming response entry
-        this.streamingResponses.set(generationId, {
-          progress,
-          content: accumulatedText,
-          isComplete: false,
-          lastUpdated: Date.now()
-        });
-      }
-
-      // Mark as complete when done
-      this.streamingResponses.set(generationId, {
-        progress: 100,
-        content: accumulatedText,
-        isComplete: true,
-        lastUpdated: Date.now()
-      });
-
-    } catch (error) {
-      console.error("Error in streaming content:", error);
-
-      // Mark as complete with error
-      const currentData = this.streamingResponses.get(generationId);
-      if (currentData) {
-        this.streamingResponses.set(generationId, {
-          ...currentData,
-          isComplete: true,
-          progress: 100, // Mark as complete even on error
-          lastUpdated: Date.now()
-        });
-      }
-    }
-  }
 }
 
 // Factory function to get the appropriate provider based on environment settings
 export async function getLLMProvider(): Promise<LLMProvider> {
-  // Force use Gemini for now
-  const provider = "gemini";
+  // Force use Replicate for now
+  const provider = "replicate";
 
   // Log the provider being used
   console.log(`Using LLM provider (forced): ${provider}`);
 
   // Create and return the appropriate provider
-  if (provider === "gemini") {
-    if (!process.env.GEMINI_API_KEY) {
-      console.warn("Gemini API key not found, falling back to OpenRouter");
+  if (provider === "replicate") {
+    if (!process.env.REPLICATE_API_KEY) {
+      console.warn("Replicate API key not found, falling back to OpenRouter");
       return new OpenRouterProvider();
     }
-    return new GeminiProvider();
-  } else {
+    return new ReplicateProvider();
+  } else if (provider === "openrouter") {
     if (!process.env.OPENROUTER_API_KEY) {
       console.warn("OpenRouter API key not found, check your environment variables");
+      throw new Error("OpenRouter API key not found");
     }
     return new OpenRouterProvider();
+  } else {
+    console.warn(`Unknown provider "${provider}", falling back to Replicate`);
+    if (!process.env.REPLICATE_API_KEY) {
+      console.warn("Replicate API key not found, falling back to OpenRouter");
+      return new OpenRouterProvider();
+    }
+    return new ReplicateProvider();
   }
 }

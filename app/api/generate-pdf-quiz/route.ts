@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { enhancedQuestionsSchema, pdfQuizParamsSchema } from "@/lib/schemas";
 import { z } from "zod";
+import { getLLMProvider } from "@/lib/llm-providers";
 
 export const maxDuration = 60;
 
@@ -104,114 +105,41 @@ export async function POST(req: Request) {
     `;
 
     try {
-      // Call OpenRouter API
-      console.log("Using API key:", process.env.OPENROUTER_API_KEY);
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
-          "X-Title": "PDF Quiz Generator",
-        },
-        body: JSON.stringify({
-          model: "meta-llama/llama-4-scout:free", // Free model with good capabilities
-          messages: [
-            {
-              role: "system",
-              content: "You are a teacher. Your job is to take a document and create a quiz based on the content of the document. The quiz should test understanding of key concepts and information from the document."
-            },
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: prompt
-                },
-                {
-                  type: "file",
-                  data: firstFile,
-                  mimeType: "application/pdf",
-                }
-              ]
-            }
-          ],
-          response_format: { type: "json_object" },
-          stream: true
-        }),
+      // System prompt for the quiz generation
+      const systemPrompt = "You are a teacher. Your job is to take a document and create a quiz based on the content of the document. The quiz should test understanding of key concepts and information from the document.";
+
+      // Get the LLM provider
+      console.log("Getting LLM provider...");
+      const llmProvider = await getLLMProvider();
+      console.log("LLM provider obtained");
+
+      // Generate content using the provider
+      console.log("Generating content...");
+      const response = await llmProvider.generateContent(prompt, systemPrompt, {
+        temperature: 0.7,
+        topP: 0.95,
+        maxOutputTokens: 8192,
+        title: "PDF Quiz Generator",
+        // Pass the PDF file data
+        file: {
+          data: firstFile,
+          mimeType: "application/pdf"
+        }
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("OpenRouter API error:", errorData);
-        return NextResponse.json(
-          { error: "Failed to generate quiz from OpenRouter API" },
-          { status: 500 }
-        );
-      }
+      // Get the generation ID for progress tracking
+      const generationId = response.id;
+      console.log("Generation ID:", generationId);
 
-      // Handle streaming response
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error("Response body is not readable");
-      }
+      // Get the response text
+      const fullContent = response.text;
+      console.log("API Response (first 100 chars):", fullContent.substring(0, 100));
 
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let fullContent = "";
-      let data: { id: string; choices: Array<{ message: { content: string } }> } = {
-        id: "stream-response",
-        choices: []
+      // Construct the data object for compatibility with existing code
+      const data = {
+        id: generationId || "response-id",
+        choices: [{ message: { content: fullContent } }]
       };
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          // Append new chunk to buffer
-          buffer += decoder.decode(value, { stream: true });
-
-          // Process complete lines from buffer
-          while (true) {
-            const lineEnd = buffer.indexOf('\n');
-            if (lineEnd === -1) break;
-
-            const line = buffer.slice(0, lineEnd).trim();
-            buffer = buffer.slice(lineEnd + 1);
-
-            if (line.startsWith('data: ')) {
-              const dataStr = line.slice(6);
-              if (dataStr === '[DONE]') break;
-
-              try {
-                const parsed = JSON.parse(dataStr);
-                // Update progress based on the chunk
-                if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta) {
-                  // Store the ID for later use
-                  if (parsed.id) {
-                    data.id = parsed.id;
-                  }
-
-                  // Accumulate content
-                  if (parsed.choices[0].delta.content) {
-                    fullContent += parsed.choices[0].delta.content;
-                  }
-                }
-              } catch (e) {
-                // Ignore invalid JSON
-                console.error("Error parsing streaming chunk:", e);
-              }
-            }
-          }
-        }
-      } finally {
-        reader.cancel();
-      }
-
-      // Construct the final data object
-      data.choices = [{ message: { content: fullContent } }];
-      console.log("API Response:", JSON.stringify(data, null, 2));
 
       try {
         let parsedContent;

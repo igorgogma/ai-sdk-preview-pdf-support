@@ -24,7 +24,7 @@ export default function LLMProviderToggle() {
 
     try {
       // Toggle between providers
-      const newProvider = provider === "openrouter" ? "gemini" : "openrouter";
+      const newProvider = provider === "openrouter" ? "replicate" : "openrouter";
 
       // Save to localStorage first (client-side state)
       localStorage.setItem("llm-provider", newProvider);
@@ -73,16 +73,16 @@ export default function LLMProviderToggle() {
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <Label htmlFor="llm-provider-toggle" className="text-sm font-medium">
-                LLM Provider: {provider === "openrouter" ? "OpenRouter" : "Gemini"}
+                LLM Provider: {provider === "openrouter" ? "OpenRouter" : "Replicate"}
               </Label>
               <p className="text-xs text-muted-foreground">
                 {provider === "openrouter"
                   ? "Using OpenRouter (Llama 4)"
-                  : "Using Google Gemini"}
+                  : "Using Replicate (Llama 3)"}
               </p>
             </div>
             <Button
-              variant={provider === "gemini" ? "default" : "outline"}
+              variant={provider === "replicate" ? "default" : "outline"}
               onClick={toggleProvider}
               disabled={isLoading}
               size="sm"
@@ -90,7 +90,7 @@ export default function LLMProviderToggle() {
               {isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : null}
-              {provider === "openrouter" ? "Switch to Gemini" : "Switch to OpenRouter"}
+              {provider === "openrouter" ? "Switch to Replicate" : "Switch to OpenRouter"}
             </Button>
           </div>
         </CardContent>

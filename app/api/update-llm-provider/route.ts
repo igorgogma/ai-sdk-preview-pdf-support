@@ -5,7 +5,7 @@ import path from "path";
 
 // Define the schema for the provider update parameters
 const providerUpdateSchema = z.object({
-  provider: z.enum(["openrouter", "gemini"]),
+  provider: z.enum(["openrouter", "replicate"]),
 });
 
 export async function POST(req: Request) {

@@ -21,6 +21,7 @@ A web application that helps IB DP students study Chemistry, Physics, and Biolog
 
 - Node.js (v18 or higher)
 - OpenRouter API key (for the Science Quiz Generator)
+- Replicate API key (for PDF processing)
 
 ### Installation
 
@@ -37,7 +38,7 @@ npm install
 
 3. Configure environment variables:
 - Edit the `.env.local` file
-- Add your OpenRouter API key to `.env.local` (see [OPENROUTER_SETUP.md](OPENROUTER_SETUP.md) for detailed instructions)
+- Add your API keys to `.env.local` (see [API_SETUP.md](API_SETUP.md) for detailed instructions)
 
 4. Start the development server:
 ```bash
@@ -68,7 +69,7 @@ If you encounter any errors:
 1. Try refreshing the page if you see any UI errors
 2. Check the browser console for error messages
 3. If you see toast notification errors, try using the application without clicking the toast notifications
-4. The PDF Quiz Generator still requires an API key for Google's Gemini Pro
+4. The application requires a Replicate API key for PDF processing
 
 ### Important Note
 
@@ -82,7 +83,7 @@ If you encounter any issues, please use the development server instead of trying
 - React
 - Tailwind CSS
 - OpenRouter API (for LLM integration)
-- Google's Gemini Pro (for PDF processing)
+- Replicate API (for PDF processing and alternative LLM provider)
 
 ## Project Structure
 
