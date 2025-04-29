@@ -11,6 +11,13 @@ export default function FormulaComparisonPage() {
     <div className="container mx-auto py-8 px-4">
       <h1 className="text-3xl font-bold mb-6">Formula Rendering Comparison</h1>
       
+      <Tabs defaultValue="mathjax" className="mb-8">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="mathjax">MathJax (Enhanced Formula)</TabsTrigger>
+          <TabsTrigger value="katex">KaTeX (Direct Implementation)</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="mathjax">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
             <Card>
               <CardHeader>
