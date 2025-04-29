@@ -174,42 +174,110 @@ export default function ScienceQuizGenerator() {
     setError(null);
     setIsLoading(true);
     setGenerationId(null); // Reset generation ID
+    setGenerationProgress(10); // Start progress at 10%
 
     try {
       // Determine the actual subject to send
       const actualSubject = subject === "other" && customSubject ? customSubject : subject;
 
-      const result = await generateScienceQuiz({
-        topic: studyTopic,
-        subject: actualSubject,
-        count: questionCount,
-        difficulty,
-        questionTypes,
-      });
+      // Create a mock questions array to use if the API call fails
+      const generateMockQuestions = () => {
+        const mockQuestions = [];
+        for (let i = 0; i < questionCount; i++) {
+          const questionType = questionTypes[i % questionTypes.length];
+          if (questionType === "multiple-choice") {
+            mockQuestions.push({
+              id: `q-${i}`,
+              type: "multiple-choice",
+              question: `What is a key concept in ${studyTopic} in the field of ${actualSubject}?`,
+              options: [
+                "First possible answer",
+                "Second possible answer",
+                "Third possible answer",
+                "Fourth possible answer"
+              ],
+              correctAnswer: "A",
+              explanation: `This is an explanation of the correct answer for this ${difficulty} question about ${studyTopic} in ${actualSubject}.`
+            });
+          } else if (questionType === "definition") {
+            mockQuestions.push({
+              id: `q-${i}`,
+              type: "definition",
+              question: `Define the following term related to ${studyTopic} in ${actualSubject}:`,
+              correctAnswer: `This is the definition of a term related to ${studyTopic} in the field of ${actualSubject}.`,
+              explanation: `This is an explanation of why this definition is important in ${studyTopic} for ${actualSubject} studies.`
+            });
+          } else if (questionType === "problem-solving") {
+            mockQuestions.push({
+              id: `q-${i}`,
+              type: "problem-solving",
+              question: `Solve this ${difficulty} problem related to ${studyTopic} in ${actualSubject}:`,
+              correctAnswer: `This is the solution to the problem.`,
+              steps: [
+                "Step 1 of solving the problem",
+                "Step 2 of solving the problem",
+                "Step 3 of solving the problem"
+              ],
+              explanation: `This is an explanation of the problem-solving approach for ${studyTopic} in the context of ${actualSubject}.`
+            });
+          }
+        }
+        return mockQuestions;
+      };
 
-      // Store the questions
-      setQuestions(result.questions);
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setGenerationProgress(prev => {
+          if (prev < 90) {
+            return prev + 5;
+          }
+          return prev;
+        });
+      }, 500);
 
-      // If we have a generation ID, store it for progress tracking
-      if (result.generationId) {
-        setGenerationId(result.generationId);
-        console.log("Generation ID:", result.generationId);
+      // Try to use the server action first
+      try {
+        const result = await generateScienceQuiz({
+          topic: studyTopic,
+          subject: actualSubject,
+          count: questionCount,
+          difficulty,
+          questionTypes,
+        });
+
+        // Store the questions
+        setQuestions(result.questions);
+
+        // If we have a generation ID, store it for progress tracking
+        if (result.generationId) {
+          setGenerationId(result.generationId);
+          console.log("Generation ID:", result.generationId);
+        }
+      } catch (serverError: any) {
+        console.error("Server action failed, using mock data:", serverError);
+
+        // Use mock data as fallback
+        const mockQuestions = generateMockQuestions();
+        setQuestions(mockQuestions);
+
+        // Show a toast notification
+        toast.warning("Using mock data due to server issues. The quiz will still work, but with generic questions.");
       }
+
+      // Clear the progress interval
+      clearInterval(progressInterval);
+
+      // Set progress to 100%
+      setGenerationProgress(100);
+
+      // Add a small delay before setting isLoading to false to show 100% progress
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 500);
     } catch (error: any) {
       console.error("Error generating quiz:", error);
       setError(new Error(error.message || "Failed to generate quiz. Please try again."));
-    } finally {
-      // Ensure the progress bar reaches 100% before completing
-      if (!generationId) {
-        // If there's no generation ID (mock data or error), simulate completion
-        setGenerationProgress(100);
-        // Add a small delay before setting isLoading to false to show 100% progress
-        setTimeout(() => {
-          setIsLoading(false);
-        }, 500);
-      } else {
-        setIsLoading(false);
-      }
+      setIsLoading(false);
     }
   };
 
