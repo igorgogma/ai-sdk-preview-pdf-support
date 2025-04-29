@@ -25,46 +25,8 @@ export async function POST(req: Request) {
     // Add a small delay to make the progress bar more realistic
     await delay(2000);
 
-    // Try to get additional context from Exa search
+    // No additional context from external sources
     let additionalContext = "";
-    try {
-      // Construct a proper URL for the Exa search API
-      const exaSearchUrl = new URL('/api/exa-search', process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').toString();
-
-      console.log("Using Exa search URL:", exaSearchUrl);
-
-      const searchResponse = await fetch(exaSearchUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          query: validatedParams.topic,
-          subject: validatedParams.subject,
-        }),
-      });
-
-      if (searchResponse.ok) {
-        const searchData = await searchResponse.json();
-        if (searchData.results && searchData.results.length > 0) {
-          // Extract relevant information from search results
-          additionalContext = "Here is some additional context about the topic:\n\n";
-
-          searchData.results.forEach((result: any, index: number) => {
-            if (result.text) {
-              additionalContext += `Source ${index + 1}: ${result.text.substring(0, 500)}...\n\n`;
-            }
-          });
-
-          console.log("Successfully retrieved additional context from Exa");
-        }
-      } else {
-        console.log("Failed to get additional context from Exa, continuing without it");
-      }
-    } catch (searchError) {
-      console.error("Error searching for additional context:", searchError);
-      // Continue without additional context
-    }
 
     // Prepare the prompt based on the parameters
     const prompt = `
@@ -506,9 +468,12 @@ export async function POST(req: Request) {
           id: `q-${index}`,
         }));
 
+        // Get the generation ID from the response or data
+        const generationId = (response as any).id || data.id;
+
         return NextResponse.json({
           questions,
-          generationId: data.id
+          generationId
         });
       } catch (error) {
         console.error("Error parsing API response:", error);

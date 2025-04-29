@@ -7,6 +7,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 export interface LLMProviderResponse {
   text: string;
   json: () => any;
+  id?: string; // Optional ID for tracking generation progress
 }
 
 // Define the common interface for all LLM providers
@@ -63,7 +64,8 @@ export class OpenRouterProvider implements LLMProvider {
           console.error("Error parsing JSON from OpenRouter response:", error);
           return {};
         }
-      }
+      },
+      id: data.id // Include the generation ID from OpenRouter
     };
   }
 
@@ -91,9 +93,27 @@ export class OpenRouterProvider implements LLMProvider {
 // Gemini implementation
 export class GeminiProvider implements LLMProvider {
   private genAI: GoogleGenerativeAI;
+  private streamingResponses: Map<string, {
+    progress: number,
+    content: string,
+    isComplete: boolean,
+    lastUpdated: number
+  }>;
 
   constructor() {
     this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    this.streamingResponses = new Map();
+
+    // Start a cleanup interval to remove old streaming responses
+    setInterval(() => {
+      const now = Date.now();
+      for (const [id, data] of this.streamingResponses.entries()) {
+        // Remove entries older than 5 minutes
+        if (now - data.lastUpdated > 5 * 60 * 1000) {
+          this.streamingResponses.delete(id);
+        }
+      }
+    }, 60 * 1000); // Run cleanup every minute
   }
 
   async generateContent(prompt: string, systemPrompt: string, options: any = {}): Promise<LLMProviderResponse> {
@@ -108,7 +128,21 @@ export class GeminiProvider implements LLMProvider {
       // Combine system prompt and user prompt
       const combinedPrompt = `${systemPrompt}\n\n${prompt}`;
 
-      // Generate content
+      // Generate a unique ID for this request
+      const generationId = `gemini-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+      // Initialize the streaming response entry
+      this.streamingResponses.set(generationId, {
+        progress: 0,
+        content: "",
+        isComplete: false,
+        lastUpdated: Date.now()
+      });
+
+      // Start streaming in the background
+      this.streamContentInBackground(model, combinedPrompt, generationId, options);
+
+      // Generate content (non-streaming for the actual response)
       const result = await model.generateContent({
         contents: [
           {
@@ -127,6 +161,15 @@ export class GeminiProvider implements LLMProvider {
         },
       });
 
+      // Mark the streaming as complete
+      const streamingData = this.streamingResponses.get(generationId);
+      if (streamingData) {
+        streamingData.isComplete = true;
+        streamingData.progress = 100;
+        streamingData.lastUpdated = Date.now();
+        this.streamingResponses.set(generationId, streamingData);
+      }
+
       const response = result.response;
       const text = response.text();
 
@@ -140,7 +183,8 @@ export class GeminiProvider implements LLMProvider {
         // Format the response to match our common interface
         return {
           text: text,
-          json: () => jsonData
+          json: () => jsonData,
+          id: generationId // Add the generation ID to the response
         };
       } catch (error) {
         console.log("Response is not valid JSON, returning text format");
@@ -155,7 +199,8 @@ export class GeminiProvider implements LLMProvider {
             const extractedJson = JSON.parse(jsonMatch[1] || jsonMatch[0]);
             return {
               text: text,
-              json: () => extractedJson
+              json: () => extractedJson,
+              id: generationId // Add the generation ID to the response
             };
           } catch (extractError) {
             console.error("Error parsing extracted JSON:", extractError);
@@ -171,12 +216,124 @@ export class GeminiProvider implements LLMProvider {
                 content: text
               }
             }]
-          })
+          }),
+          id: generationId // Add the generation ID to the response
         };
       }
     } catch (error) {
       console.error("Gemini API error:", error);
       throw new Error(`Gemini API error: ${error.message || "Unknown error"}`);
+    }
+  }
+
+  // Check the generation progress
+  async checkGeneration(generationId: string): Promise<any> {
+    // Check if we have this generation ID in our map
+    if (this.streamingResponses.has(generationId)) {
+      const data = this.streamingResponses.get(generationId);
+
+      // Update the last accessed time
+      data.lastUpdated = Date.now();
+      this.streamingResponses.set(generationId, data);
+
+      // Return a response that matches the expected format
+      return {
+        progress: data.progress,
+        status: data.isComplete ? "complete" : "in_progress",
+        finish_reason: data.isComplete ? "stop" : null,
+        choices: [
+          {
+            message: {
+              content: data.content
+            }
+          }
+        ],
+        usage: {
+          completion_tokens: data.content.length / 4, // Rough estimate
+          total_tokens: 1000 // Placeholder
+        }
+      };
+    } else {
+      // If we don't have this ID, return a default response
+      return {
+        progress: 100, // Assume it's complete if we don't have it
+        status: "complete",
+        finish_reason: "stop",
+        choices: [],
+        usage: {
+          completion_tokens: 0,
+          total_tokens: 0
+        }
+      };
+    }
+  }
+
+  // Stream content in the background to track progress
+  private async streamContentInBackground(model: any, prompt: string, generationId: string, options: any = {}) {
+    try {
+      // Start streaming
+      const streamingResponse = await model.generateContentStream({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { text: prompt }
+            ]
+          }
+        ],
+        generationConfig: {
+          temperature: options.temperature || 0.7,
+          topK: options.topK || 40,
+          topP: options.topP || 0.95,
+          maxOutputTokens: options.maxOutputTokens || 8192,
+        },
+      });
+
+      let accumulatedText = "";
+      let chunkCount = 0;
+      const estimatedTotalChunks = 20; // This is an estimate, adjust based on your observations
+
+      // Process each chunk as it arrives
+      for await (const chunk of streamingResponse) {
+        chunkCount++;
+
+        // Get the text from the chunk
+        const chunkText = chunk.text || "";
+        accumulatedText += chunkText;
+
+        // Calculate progress (this is an estimate)
+        const progress = Math.min(95, Math.round((chunkCount / estimatedTotalChunks) * 100));
+
+        // Update the streaming response entry
+        this.streamingResponses.set(generationId, {
+          progress,
+          content: accumulatedText,
+          isComplete: false,
+          lastUpdated: Date.now()
+        });
+      }
+
+      // Mark as complete when done
+      this.streamingResponses.set(generationId, {
+        progress: 100,
+        content: accumulatedText,
+        isComplete: true,
+        lastUpdated: Date.now()
+      });
+
+    } catch (error) {
+      console.error("Error in streaming content:", error);
+
+      // Mark as complete with error
+      const currentData = this.streamingResponses.get(generationId);
+      if (currentData) {
+        this.streamingResponses.set(generationId, {
+          ...currentData,
+          isComplete: true,
+          progress: 100, // Mark as complete even on error
+          lastUpdated: Date.now()
+        });
+      }
     }
   }
 }
