@@ -23,9 +23,13 @@ export async function generateScienceQuiz(params: QuizParams) {
     const validatedParams = quizParamsSchema.parse(params);
 
     // Call our API route with an absolute URL
+    // For server actions, we need to use absolute URLs
+    // Note: process.env.VERCEL_URL doesn't include the protocol
     const baseUrl = process.env.VERCEL_URL
       ? `https://${process.env.VERCEL_URL}`
       : process.env.NEXT_PUBLIC_APP_URL || 'https://ib-dp-study-helper.vercel.app';
+
+    console.log("Using base URL:", baseUrl);
 
     const response = await fetch(`${baseUrl}/api/generate-science-quiz`, {
       method: "POST",
@@ -35,13 +39,46 @@ export async function generateScienceQuiz(params: QuizParams) {
       body: JSON.stringify(validatedParams),
     });
 
+    // Log the response for debugging
+    console.log("API Response Status:", response.status, response.statusText);
+
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error("API error:", errorData);
-      throw new Error(errorData.error || "Failed to generate quiz");
+      // Try to get error data, but handle non-JSON responses
+      let errorMessage = "Failed to generate quiz";
+      try {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          console.error("API error:", errorData);
+          errorMessage = errorData.error || errorMessage;
+        } else {
+          // If not JSON, get the text response
+          const errorText = await response.text();
+          console.error("API error (non-JSON):", errorText.substring(0, 500));
+          errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        }
+      } catch (parseError) {
+        console.error("Error parsing error response:", parseError);
+      }
+      throw new Error(errorMessage);
     }
 
-    const data = await response.json();
+    // Try to parse the JSON response with error handling
+    let data;
+    try {
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        // If not JSON, log and throw error
+        const textResponse = await response.text();
+        console.error("Unexpected non-JSON response:", textResponse.substring(0, 500));
+        throw new Error("Server returned non-JSON response");
+      }
+    } catch (jsonError) {
+      console.error("JSON parsing error:", jsonError);
+      throw new Error("Failed to parse server response");
+    }
 
     // Validate that we have questions
     if (!data.questions || !Array.isArray(data.questions) || data.questions.length === 0) {
@@ -63,9 +100,13 @@ export async function generateScienceQuiz(params: QuizParams) {
 export async function checkGenerationProgress(generationId: string) {
   try {
     // Call our API route with an absolute URL
+    // For server actions, we need to use absolute URLs
+    // Note: process.env.VERCEL_URL doesn't include the protocol
     const baseUrl = process.env.VERCEL_URL
       ? `https://${process.env.VERCEL_URL}`
       : process.env.NEXT_PUBLIC_APP_URL || 'https://ib-dp-study-helper.vercel.app';
+
+    console.log("Using base URL for progress check:", baseUrl);
 
     const response = await fetch(`${baseUrl}/api/check-generation`, {
       method: "POST",
@@ -75,13 +116,46 @@ export async function checkGenerationProgress(generationId: string) {
       body: JSON.stringify({ generationId }),
     });
 
+    // Log the response for debugging
+    console.log("Check Progress API Response Status:", response.status, response.statusText);
+
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error("API error when checking progress:", errorData);
-      throw new Error(errorData.error || "Failed to check generation progress");
+      // Try to get error data, but handle non-JSON responses
+      let errorMessage = "Failed to check generation progress";
+      try {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          console.error("API error when checking progress:", errorData);
+          errorMessage = errorData.error || errorMessage;
+        } else {
+          // If not JSON, get the text response
+          const errorText = await response.text();
+          console.error("API error when checking progress (non-JSON):", errorText.substring(0, 500));
+          errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        }
+      } catch (parseError) {
+        console.error("Error parsing error response:", parseError);
+      }
+      throw new Error(errorMessage);
     }
 
-    const data = await response.json();
+    // Try to parse the JSON response with error handling
+    let data;
+    try {
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        // If not JSON, log and throw error
+        const textResponse = await response.text();
+        console.error("Unexpected non-JSON response from progress check:", textResponse.substring(0, 500));
+        throw new Error("Server returned non-JSON response for progress check");
+      }
+    } catch (jsonError) {
+      console.error("JSON parsing error in progress check:", jsonError);
+      throw new Error("Failed to parse server response for progress check");
+    }
     return data;
   } catch (error: any) {
     console.error("Error checking generation progress:", error);
