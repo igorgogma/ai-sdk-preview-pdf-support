@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { z } from "zod";
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Define the schema for the quiz generation parameters
 const quizParamsSchema = z.object({
@@ -161,52 +162,136 @@ export async function POST(req: Request) {
     `;
 
     try {
-      // Call OpenRouter API
-      console.log("Using API key:", process.env.OPENROUTER_API_KEY);
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://ib-dp-study-helper.vercel.app",
-          "X-Title": "IB Science Quiz Generator",
-        },
-        body: JSON.stringify({
-          model: "meta-llama/llama-4-scout:free",
-          messages: [
-            {
-              role: "system",
-              content: "You are an expert IB science teacher specializing in Chemistry, Physics, and Biology with 20+ years of experience teaching IB DP students. Your expertise includes creating educational content that follows IB curriculum standards and assessment criteria. Your explanations are known for being exceptionally clear, methodical, and step-by-step, helping students truly understand complex scientific concepts rather than just memorizing facts. You excel at breaking down difficult topics into logical steps and explaining WHY scientific principles work the way they do, not just WHAT they are. You always use proper mathematical notation and ensure your explanations connect to the broader scientific context. Your goal is to create quiz questions that not only test knowledge but also serve as effective learning tools through their detailed, structured explanations.\n\nWhen provided with additional context about a topic, use this information to create more accurate, detailed, and curriculum-aligned questions. Incorporate specific facts, concepts, and terminology from the provided context, but adapt them to create appropriate questions rather than copying directly. Ensure all information used is scientifically accurate and relevant to the IB curriculum."
-            },
+      // System prompt for the quiz generation
+      const systemPrompt = "You are an expert IB science teacher specializing in Chemistry, Physics, and Biology with 20+ years of experience teaching IB DP students. Your expertise includes creating educational content that follows IB curriculum standards and assessment criteria. Your explanations are known for being exceptionally clear, methodical, and step-by-step, helping students truly understand complex scientific concepts rather than just memorizing facts. You excel at breaking down difficult topics into logical steps and explaining WHY scientific principles work the way they do, not just WHAT they are. You always use proper mathematical notation and ensure your explanations connect to the broader scientific context. Your goal is to create quiz questions that not only test knowledge but also serve as effective learning tools through their detailed, structured explanations.\n\nWhen provided with additional context about a topic, use this information to create more accurate, detailed, and curriculum-aligned questions. Incorporate specific facts, concepts, and terminology from the provided context, but adapt them to create appropriate questions rather than copying directly. Ensure all information used is scientifically accurate and relevant to the IB curriculum.";
+
+      // Determine which LLM provider to use based on environment variable
+      const llmProvider = process.env.LLM_PROVIDER?.toLowerCase() || "openrouter";
+      console.log(`Using LLM provider: ${llmProvider}`);
+
+      let response;
+
+      if (llmProvider === "gemini") {
+        // Use Gemini API
+        if (!process.env.GEMINI_API_KEY) {
+          throw new Error("Gemini API key not found");
+        }
+
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+        // Get the model
+        const model = genAI.getGenerativeModel({
+          model: "gemini-1.5-flash-001"
+        });
+
+        // Generate content
+        const result = await model.generateContent({
+          contents: [
             {
               role: "user",
-              content: prompt
+              parts: [
+                { text: systemPrompt + "\n\n" + prompt }
+              ]
             }
           ],
-          response_format: { type: "json_object" }
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("OpenRouter API error:", errorData);
-
-        // Fall back to mock questions if API fails
-        const mockQuestions = generateMockQuestions(
-          validatedParams.topic,
-          validatedParams.subject,
-          validatedParams.count,
-          validatedParams.difficulty,
-          validatedParams.questionTypes
-        );
-
-        return NextResponse.json({
-          questions: mockQuestions,
-          note: "Using mock data due to API error"
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 8192,
+          },
         });
+
+        const geminiResponse = result.response;
+        const text = geminiResponse.text();
+
+        // Format the response to match our common interface
+        response = {
+          text: text,
+          json: () => {
+            try {
+              return JSON.parse(text);
+            } catch (error) {
+              console.error("Error parsing JSON from Gemini response:", error);
+
+              // Try to extract JSON from markdown
+              const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) ||
+                              text.match(/```\n([\s\S]*?)\n```/) ||
+                              text.match(/{[\s\S]*}/);
+
+              if (jsonMatch) {
+                try {
+                  return JSON.parse(jsonMatch[1] || jsonMatch[0]);
+                } catch (extractError) {
+                  console.error("Error parsing extracted JSON:", extractError);
+                  return {};
+                }
+              }
+
+              return {};
+            }
+          }
+        };
+      } else {
+        // Use OpenRouter API
+        if (!process.env.OPENROUTER_API_KEY) {
+          throw new Error("OpenRouter API key not found");
+        }
+
+        const openRouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+            "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://ib-dp-study-helper.vercel.app",
+            "X-Title": "IB Science Quiz Generator",
+          },
+          body: JSON.stringify({
+            model: "meta-llama/llama-4-scout:free",
+            messages: [
+              {
+                role: "system",
+                content: systemPrompt
+              },
+              {
+                role: "user",
+                content: prompt
+              }
+            ],
+            response_format: { type: "json_object" }
+          }),
+        });
+
+        if (!openRouterResponse.ok) {
+          const errorData = await openRouterResponse.json();
+          console.error("OpenRouter API error:", errorData);
+          throw new Error(`OpenRouter API error: ${errorData.error || "Unknown error"}`);
+        }
+
+        const data = await openRouterResponse.json();
+
+        // Format the response to match our common interface
+        response = {
+          text: data.choices[0]?.message?.content || "",
+          json: () => {
+            try {
+              return JSON.parse(data.choices[0]?.message?.content || "{}");
+            } catch (error) {
+              console.error("Error parsing JSON from OpenRouter response:", error);
+              return {};
+            }
+          }
+        };
       }
 
-      const data = await response.json();
+      // Parse the response
+      let data;
+      try {
+        data = response.json();
+      } catch (parseError) {
+        console.error("Error parsing response JSON:", parseError);
+        data = { choices: [{ message: { content: response.text } }] };
+      }
       console.log("API Response:", JSON.stringify(data, null, 2));
 
       try {

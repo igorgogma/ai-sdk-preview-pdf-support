@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { getLLMProvider } from "@/lib/llm-providers";
 
 // Define the schema for the generation check parameters
 const generationCheckSchema = z.object({
@@ -11,27 +12,25 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { generationId } = generationCheckSchema.parse(body);
 
-    // Call OpenRouter API to check generation status
-    const response = await fetch(`https://openrouter.ai/api/v1/generation?id=${generationId}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://ib-dp-study-helper.vercel.app",
-        "X-Title": "IB Science Quiz Generator",
-      },
-    });
+    // Get the appropriate LLM provider
+    const llmProvider = await getLLMProvider();
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error("OpenRouter API error when checking generation:", errorData);
-      return NextResponse.json(
-        { error: "Failed to check generation status" },
-        { status: response.status }
-      );
+    // Check if the provider supports generation checking
+    if (!llmProvider.checkGeneration) {
+      // If the provider doesn't support generation checking (e.g., Gemini),
+      // return a simulated progress
+      const simulatedProgress = Math.min(100, Math.floor(Math.random() * 30) + 70); // 70-100% progress
+
+      return NextResponse.json({
+        progress: simulatedProgress,
+        status: simulatedProgress === 100 ? "complete" : "in_progress",
+        data: { simulated: true }
+      });
     }
 
-    const data = await response.json();
+    // Call the provider's generation check method
+    try {
+      const data = await llmProvider.checkGeneration(generationId);
 
     // Calculate progress based on the response
     // This is a simplified approach - in a real app, you might have more sophisticated logic

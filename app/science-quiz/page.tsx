@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { generateScienceQuiz, checkGenerationProgress } from "./actions";
 import Quiz from "@/components/science-quiz";
+import LLMProviderToggle from "@/components/llm-provider-toggle";
 
 // Define the question types
 const questionTypes = ["multiple-choice", "definition", "problem-solving"] as const;
@@ -171,6 +172,14 @@ export default function ScienceQuizGenerator() {
       return;
     }
 
+    // Check if there's a provider preference in localStorage
+    if (typeof window !== 'undefined') {
+      const savedProvider = localStorage.getItem("llm-provider");
+      if (savedProvider) {
+        console.log(`Using provider from localStorage: ${savedProvider}`);
+      }
+    }
+
     setError(null);
     setIsLoading(true);
     setGenerationId(null); // Reset generation ID
@@ -271,6 +280,10 @@ export default function ScienceQuizGenerator() {
             </div>
           </CardHeader>
           <CardContent className="space-y-8 px-6 py-8">
+            <div className="mb-6">
+              <LLMProviderToggle />
+            </div>
+
             <div className="space-y-3">
               <Label htmlFor="subject" className="text-base">Subject</Label>
               <Select

@@ -144,9 +144,24 @@ export default function MathFormula({ formula, display = false, autoDetect = fal
               macros: {
                 'frac': ['\\frac{#1}{#2}', 2],
                 'omega': '\\omega',
+                'alpha': '\\alpha',
+                'beta': '\\beta',
+                'gamma': '\\gamma',
+                'delta': '\\delta',
+                'theta': '\\theta',
+                'lambda': '\\lambda',
+                'sigma': '\\sigma',
+                'pi': '\\pi',
                 'L': 'L',
                 'I': 'I',
                 'M': 'M',
+                'v': 'v',
+                'a': 'a',
+                'g': 'g',
+                'F': 'F',
+                'E': 'E',
+                'm': 'm',
+                'c': 'c',
                 'rightarrow': '\\rightarrow',
                 'Delta': '\\Delta',
                 'circ': '\\circ'
@@ -186,27 +201,48 @@ export default function MathFormula({ formula, display = false, autoDetect = fal
           processedFormula = processedFormula
             // Fix fractions that might be using \frac{1}{2} syntax
             .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '\\frac{$1}{$2}')
-            // Fix subscripts and superscripts
+
+            // Fix subscripts without braces (e.g., v_0 -> v_{0}, theta_0 -> theta_{0})
+            .replace(/([a-zA-Z]+)_([a-zA-Z0-9]+)(?!\{)/g, '$1_{$2}')
+
+            // Fix subscripts and superscripts with braces
             .replace(/\_\{([^{}]+)\}/g, '_{$1}')
             .replace(/\^\{([^{}]+)\}/g, '^{$1}')
+
             // Fix common physics symbols
             .replace(/\\omega/g, '\\omega')
             .replace(/\\alpha/g, '\\alpha')
+            .replace(/\\theta/g, '\\theta')
+
             // Fix common formatting issues with L, I, M
             .replace(/L\s*\^\s*2/g, 'L^2')
             .replace(/M\s*L\s*\^\s*2/g, 'ML^2')
+
             // Fix issues with \text or \mathrm
             .replace(/\\text\{([^{}]+)\}/g, '\\text{$1}')
             .replace(/\\mathrm\{([^{}]+)\}/g, '\\mathrm{$1}')
+
             // Fix chemical equations
             .replace(/rightarrow/g, '\\rightarrow')
             .replace(/\\rightarrow/g, '\\rightarrow')
+
             // Fix missing braces for superscripts
             .replace(/(\w)(\d+)(?!\w|\})/g, '$1^{$2}')
+
+            // Fix missing braces for subscripts in variables
+            .replace(/v_0/g, 'v_{0}')
+            .replace(/v_theta/g, 'v_{\\theta}')
+            .replace(/v_Otheta/g, 'v_{0\\theta}')
+
             // Fix Delta H
             .replace(/Delta\s*H/g, '\\Delta H')
+
             // Fix degree symbol
-            .replace(/(\d+)\s*circ/g, '$1\\circ');
+            .replace(/(\d+)\s*circ/g, '$1\\circ')
+
+            // Fix specific physics notation
+            .replace(/\\theta\\theta/g, '\\theta')
+            .replace(/R\s*=\s*\\frac\{v_0\^2\s*\\sin\(2\\theta\)\}\{g\}/g, 'R = \\frac{v_{0}^{2}\\sin(2\\theta)}{g}');
 
           // Check if the formula already contains dollar signs
           const hasDollarSigns = /\$|\$\$/.test(processedFormula);
