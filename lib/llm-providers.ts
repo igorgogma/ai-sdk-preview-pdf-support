@@ -340,25 +340,23 @@ export class GeminiProvider implements LLMProvider {
 
 // Factory function to get the appropriate provider based on environment settings
 export async function getLLMProvider(): Promise<LLMProvider> {
-  // First check environment variable
-  let provider = process.env.LLM_PROVIDER?.toLowerCase() || "openrouter";
+  // Force use Gemini for now
+  const provider = "gemini";
 
   // Log the provider being used
-  console.log(`Using LLM provider from environment: ${provider}`);
+  console.log(`Using LLM provider (forced): ${provider}`);
 
   // Create and return the appropriate provider
-  switch (provider) {
-    case "gemini":
-      if (!process.env.GEMINI_API_KEY) {
-        console.warn("Gemini API key not found, falling back to OpenRouter");
-        return new OpenRouterProvider();
-      }
-      return new GeminiProvider();
-    case "openrouter":
-    default:
-      if (!process.env.OPENROUTER_API_KEY) {
-        console.warn("OpenRouter API key not found, check your environment variables");
-      }
+  if (provider === "gemini") {
+    if (!process.env.GEMINI_API_KEY) {
+      console.warn("Gemini API key not found, falling back to OpenRouter");
       return new OpenRouterProvider();
+    }
+    return new GeminiProvider();
+  } else {
+    if (!process.env.OPENROUTER_API_KEY) {
+      console.warn("OpenRouter API key not found, check your environment variables");
+    }
+    return new OpenRouterProvider();
   }
 }
