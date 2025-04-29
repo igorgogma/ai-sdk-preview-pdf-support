@@ -33,11 +33,11 @@ export async function checkGenerationProgress(generationId: string) {
     return data;
   } catch (error) {
     console.error("Error checking generation progress:", error);
-    // Return a default progress value on error
+    // Return the last known progress or a default value
     return {
-      progress: 50,
+      progress: 10, // Just show minimal progress
       status: "in_progress",
-      statusMessage: "Checking progress..."
+      statusMessage: "Checking generation progress..."
     };
   }
 }

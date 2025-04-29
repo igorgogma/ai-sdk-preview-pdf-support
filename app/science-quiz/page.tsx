@@ -92,8 +92,9 @@ export default function ScienceQuizGenerator() {
           }
         } catch (error) {
           console.error("Error checking progress:", error);
-          // If there's an error, continue with simulated progress
-          setGenerationProgress(prev => Math.min(95, prev + 1));
+          // If there's an error, don't change the progress
+          // Just update the status message
+          setStatusMessage("Checking progress...");
         }
       };
 
@@ -123,36 +124,12 @@ export default function ScienceQuizGenerator() {
 
       return () => clearTimeout(timeout);
     } else if (isLoading && !generationId) {
-      // If loading but no generation ID yet, use simulated progress
-      // Create a simulated progress that moves faster than the real one
-      const simulateProgress = () => {
-        setGenerationProgress(prev => {
-          // Different rates of progress based on current progress
-          if (prev < 20) {
-            // Start slow - initial API connection
-            return prev + 2 + Math.random() * 3; // 2-5% increments
-          } else if (prev < 50) {
-            // Speed up - API processing the request
-            return prev + 3 + Math.random() * 4; // 3-7% increments
-          } else if (prev < 75) {
-            // Maintain speed - generating content
-            return prev + 2 + Math.random() * 3; // 2-5% increments
-          } else if (prev < 90) {
-            // Slow down - finalizing
-            return prev + 1 + Math.random() * 2; // 1-3% increments
-          } else {
-            // Very slow - waiting for response
-            return Math.min(95, prev + 0.5 + Math.random() * 1); // 0.5-1.5% increments
-          }
-        });
-      };
-
-      // Set initial progress
+      // If loading but no generation ID yet, show initial progress
+      // Set a fixed initial progress value
       setGenerationProgress(10);
+      setStatusMessage("Initializing quiz generation...");
 
-      // Update progress every 200ms for smoother animation
-      progressIntervalRef.current = setInterval(simulateProgress, 200);
-
+      // No need for interval here, we'll wait for the generationId
       // Cleanup function
       return () => {
         if (progressIntervalRef.current) {
@@ -214,16 +191,22 @@ export default function ScienceQuizGenerator() {
       console.error("Error generating quiz:", error);
       setError(new Error(error.message || "Failed to generate quiz. Please try again."));
     } finally {
-      // Ensure the progress bar reaches 100% before completing
-      if (!generationId) {
-        // If there's no generation ID (mock data or error), simulate completion
+      // If we have questions but no generationId (mock data), set progress to 100%
+      if (questions.length > 0 && !generationId) {
         setGenerationProgress(100);
+        setStatusMessage("Quiz generation complete");
         // Add a small delay before setting isLoading to false to show 100% progress
         setTimeout(() => {
           setIsLoading(false);
         }, 500);
-      } else {
+      } else if (!questions.length) {
+        // If there was an error and no questions were generated
+        setGenerationProgress(0);
+        setStatusMessage("Quiz generation failed");
         setIsLoading(false);
+      } else {
+        // For API-based progress, we'll let the progress tracking handle completion
+        // The useEffect will set isLoading to false when progress reaches 100%
       }
     }
   };

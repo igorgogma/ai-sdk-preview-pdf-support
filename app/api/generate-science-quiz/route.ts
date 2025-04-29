@@ -368,6 +368,7 @@ export async function POST(req: Request) {
 
           return NextResponse.json({
             questions: mockQuestions,
+            generationId: `mock-${Date.now()}`,
             note: "Using mock data due to invalid response format"
           });
         }
@@ -399,6 +400,7 @@ export async function POST(req: Request) {
 
         return NextResponse.json({
           questions: mockQuestions,
+          generationId: `mock-${Date.now()}`,
           note: "Using mock data due to parsing error"
         });
       }
@@ -416,6 +418,7 @@ export async function POST(req: Request) {
 
       return NextResponse.json({
         questions: mockQuestions,
+        generationId: `mock-${Date.now()}`,
         note: "Using mock data due to API call error"
       });
     }

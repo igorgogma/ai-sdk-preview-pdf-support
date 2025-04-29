@@ -67,8 +67,9 @@ export default function PDFQuizGenerator() {
           }
         } catch (error) {
           console.error("Error checking progress:", error);
-          // If there's an error, continue with simulated progress
-          setProgress(prev => Math.min(95, prev + 1));
+          // If there's an error, don't change the progress
+          // Just update the status message
+          setStatusMessage("Checking progress...");
         }
       };
 
@@ -150,6 +151,7 @@ export default function PDFQuizGenerator() {
 
     setIsLoading(true);
     setProgress(10);
+    setStatusMessage("Preparing files...");
 
     try {
       const encodedFiles = await Promise.all(
@@ -160,13 +162,13 @@ export default function PDFQuizGenerator() {
         })),
       );
 
-      setProgress(30);
+      setStatusMessage("Generating title...");
 
       // Generate title
       const generatedTitle = await generateQuizTitle(encodedFiles[0].name);
       setTitle(generatedTitle);
 
-      setProgress(50);
+      setStatusMessage("Sending request to generate quiz...");
 
       // Call the new API endpoint with the enhanced parameters
       const response = await fetch("/api/generate-pdf-quiz", {
@@ -181,8 +183,6 @@ export default function PDFQuizGenerator() {
         }),
       });
 
-      setProgress(90);
-
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to generate quiz");
@@ -195,16 +195,25 @@ export default function PDFQuizGenerator() {
       if (data.generationId) {
         setGenerationId(data.generationId);
         console.log("Generation ID:", data.generationId);
+        setStatusMessage("Tracking quiz generation progress...");
       } else {
         // If no generation ID, set progress to 100%
         setProgress(100);
+        setStatusMessage("Quiz generation complete");
       }
     } catch (error: any) {
       console.error("Failed to generate quiz:", error);
       toast.error(error.message || "Failed to generate quiz. Please try again.");
       setFiles([]);
-    } finally {
+      setStatusMessage("Quiz generation failed");
+      setProgress(0);
       setIsLoading(false);
+    } finally {
+      // Only set isLoading to false if we don't have a generationId
+      // Otherwise, let the progress tracking handle it
+      if (!generationId) {
+        setIsLoading(false);
+      }
     }
   };
 
