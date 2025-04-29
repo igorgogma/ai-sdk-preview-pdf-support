@@ -70,6 +70,12 @@ export async function POST(req: Request) {
       - Use $10^{-3}$ instead of $10^-3$
       - Use $\theta^{\circ}$ for degrees, not $\theta^\circ$ or $\theta\circ$
 
+      CRITICAL FOR PHYSICS FORMULAS:
+      - For angles with velocity: use $45^{\circ}v_{0}$ not $45^{\circ}v_0$ or $45°v_0$
+      - For equations with exponents: use $20^{0}$ not $20^0$
+      - For fractions with variables: use $\frac{1}{2}g(v_{total})^{2}$ not $\frac{1}{2}g(v_total)^2$
+      - Always use braces for ALL subscripts and superscripts without exception
+
       ALWAYS USE PROPER LATEX COMMANDS FOR FUNCTIONS:
       - Use $\cos(\theta)$ instead of $cos(\theta)$
       - Use $\sin(\theta)$ instead of $sin(\theta)$
@@ -137,7 +143,7 @@ export async function POST(req: Request) {
 
     try {
       // System prompt for the quiz generation
-      const systemPrompt = "You are a teacher. Your job is to take a document and create a quiz based on the content of the document. The quiz should test understanding of key concepts and information from the document.\n\nCRITICAL FORMATTING REQUIREMENTS:\n1. Always use proper LaTeX notation for ALL mathematical formulas, equations, and expressions.\n2. ALWAYS use braces for subscripts and superscripts: $v_{0}$ not $v_0$, $a_{x}$ not $a_x$, $10^{-3}$ not $10^-3$.\n3. ALWAYS use proper LaTeX commands for functions: $\\cos(\\theta)$ not $cos(\\theta)$, $\\sin(\\theta)$ not $sin(\\theta)$.\n4. ALWAYS use proper LaTeX commands for Greek letters: $\\theta$ not $theta$, $\\alpha$ not $alpha$.\n5. For degrees, use $30^{\\circ}$ not $30\\circ$ or $30^\\circ$.\n6. Format explanations in a clear, step-by-step manner with proper headings and structure.";
+      const systemPrompt = "You are a teacher. Your job is to take a document and create a quiz based on the content of the document. The quiz should test understanding of key concepts and information from the document.\n\nCRITICAL FORMATTING REQUIREMENTS:\n1. Always use proper LaTeX notation for ALL mathematical formulas, equations, and expressions.\n2. ALWAYS use braces for subscripts and superscripts: $v_{0}$ not $v_0$, $a_{x}$ not $a_x$, $10^{-3}$ not $10^-3$.\n3. ALWAYS use proper LaTeX commands for functions: $\\cos(\\theta)$ not $cos(\\theta)$, $\\sin(\\theta)$ not $sin(\\theta)$.\n4. ALWAYS use proper LaTeX commands for Greek letters: $\\theta$ not $theta$, $\\alpha$ not $alpha$.\n5. For degrees, use $30^{\\circ}$ not $30\\circ$ or $30^\\circ$.\n6. Format explanations in a clear, step-by-step manner with proper headings and structure.\n\nCRITICAL FOR PHYSICS FORMULAS:\n1. For angles with velocity: use $45^{\\circ}v_{0}$ not $45^{\\circ}v_0$ or $45°v_0$\n2. For equations with exponents: use $20^{0}$ not $20^0$\n3. For fractions with variables: use $\\frac{1}{2}g(v_{\\text{total}})^{2}$ not $\\frac{1}{2}g(v_total)^2$\n4. Always use braces for ALL subscripts and superscripts without exception\n5. For complex expressions, use \\text{} for text within math: $v_{\\text{total}}$ not $v_{total}$";
 
       // Get the LLM provider
       console.log("Getting LLM provider...");
@@ -302,9 +308,14 @@ export async function POST(req: Request) {
           );
         }
 
+        // Get the generation ID from the response
+        const generationId = data.id || response.id || null;
+
+        console.log("PDF Quiz Generation ID:", generationId);
+
         return NextResponse.json({
           questions,
-          generationId: data.id
+          generationId
         });
       } catch (error) {
         console.error("Error parsing API response:", error);

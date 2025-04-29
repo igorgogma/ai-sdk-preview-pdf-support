@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { enhancedQuestionsSchema, pdfQuizParamsSchema } from "@/lib/schemas";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -20,7 +20,7 @@ import { RangeSlider } from "@/components/ui/range-slider";
 import { Label } from "@/components/ui/label";
 import EnhancedQuiz from "@/components/enhanced-quiz";
 import NextLink from "next/link";
-import { generateQuizTitle } from "./actions";
+import { generateQuizTitle, checkGenerationProgress } from "./actions";
 import { AnimatePresence, motion } from "framer-motion";
 
 export default function PDFQuizGenerator() {
@@ -32,6 +32,81 @@ export default function PDFQuizGenerator() {
   const [questionTypes, setQuestionTypes] = useState<string[]>(["multiple-choice"]);
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [generationId, setGenerationId] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string>("");
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Effect to track real progress during quiz generation
+  useEffect(() => {
+    // Clear any existing interval
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+
+    if (isLoading && generationId) {
+      // Function to check progress
+      const checkProgress = async () => {
+        try {
+          const progressData = await checkGenerationProgress(generationId);
+
+          if (progressData.progress) {
+            setProgress(progressData.progress);
+          }
+
+          if (progressData.statusMessage) {
+            setStatusMessage(progressData.statusMessage);
+          }
+
+          // If generation is complete, stop checking
+          if (progressData.status === "complete" || progressData.progress >= 100) {
+            if (progressIntervalRef.current) {
+              clearInterval(progressIntervalRef.current);
+              progressIntervalRef.current = null;
+            }
+          }
+        } catch (error) {
+          console.error("Error checking progress:", error);
+          // If there's an error, continue with simulated progress
+          setProgress(prev => Math.min(95, prev + 1));
+        }
+      };
+
+      // Check progress immediately
+      checkProgress();
+
+      // Then check every 1 second
+      progressIntervalRef.current = setInterval(checkProgress, 1000);
+
+      // Cleanup function
+      return () => {
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+          progressIntervalRef.current = null;
+        }
+      };
+    } else if (!isLoading && progress > 0) {
+      // When loading is complete, set progress to 100%
+      setProgress(100);
+
+      // Reset progress and generation ID after a delay
+      const timeout = setTimeout(() => {
+        setProgress(0);
+        setGenerationId(null);
+        setStatusMessage("");
+      }, 500);
+
+      return () => clearTimeout(timeout);
+    }
+
+    // Cleanup function
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+    };
+  }, [isLoading, generationId]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
@@ -115,7 +190,15 @@ export default function PDFQuizGenerator() {
 
       const data = await response.json();
       setQuestions(data.questions);
-      setProgress(100);
+
+      // If we have a generation ID, store it for progress tracking
+      if (data.generationId) {
+        setGenerationId(data.generationId);
+        console.log("Generation ID:", data.generationId);
+      } else {
+        // If no generation ID, set progress to 100%
+        setProgress(100);
+      }
     } catch (error: any) {
       console.error("Failed to generate quiz:", error);
       toast.error(error.message || "Failed to generate quiz. Please try again.");
@@ -346,9 +429,11 @@ export default function PDFQuizGenerator() {
                   }`}
                 />
                 <span className="text-muted-foreground text-center col-span-4 sm:col-span-2">
-                  {progress < 50 ? "Analyzing PDF content" :
-                   progress < 90 ? "Generating questions" :
-                   "Finalizing quiz"}
+                  {statusMessage ? statusMessage :
+                   progress < 30 ? "Analyzing PDF content" :
+                   progress < 70 ? "Generating questions" :
+                   progress < 95 ? "Finalizing quiz" :
+                   "Completing generation"}
                 </span>
               </div>
             </div>

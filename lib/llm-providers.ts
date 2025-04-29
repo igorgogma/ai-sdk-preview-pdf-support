@@ -98,7 +98,8 @@ export class ReplicateProvider implements LLMProvider {
     content: string,
     isComplete: boolean,
     lastUpdated: number,
-    replicatePredictionId?: string
+    replicatePredictionId?: string,
+    statusMessage?: string
   }>;
 
   constructor() {
@@ -259,61 +260,148 @@ export class ReplicateProvider implements LLMProvider {
       // If we have a Replicate prediction ID, check the actual progress
       if (data.replicatePredictionId && !data.isComplete) {
         try {
+          // Get the prediction from Replicate API
           const prediction = await this.replicate.predictions.get(data.replicatePredictionId);
 
           // Update progress based on status
           let progress = data.progress;
+          let statusMessage = "";
 
-          if (prediction.status === "succeeded") {
-            progress = 100;
-            data.isComplete = true;
-            data.content = typeof prediction.output === 'string'
-              ? prediction.output
-              : JSON.stringify(prediction.output);
-          } else if (prediction.status === "processing") {
-            // Estimate progress based on logs if available
-            if (prediction.logs) {
-              // Count the number of log lines as a rough progress indicator
-              const logLines = prediction.logs.split('\n').filter(line => line.trim().length > 0);
-              progress = Math.min(95, Math.max(data.progress, Math.round((logLines.length / 20) * 100)));
-            } else {
-              // If no logs, increment progress slightly
-              progress = Math.min(90, data.progress + 5);
-            }
-          } else if (prediction.status === "starting") {
-            progress = Math.min(30, data.progress + 5);
-          } else if (prediction.status === "failed") {
-            progress = 100;
-            data.isComplete = true;
+          // Handle different prediction statuses
+          switch (prediction.status) {
+            case "succeeded":
+              progress = 100;
+              data.isComplete = true;
+              statusMessage = "Generation complete";
+              data.content = typeof prediction.output === 'string'
+                ? prediction.output
+                : JSON.stringify(prediction.output);
+              break;
+
+            case "processing":
+              // More accurate progress tracking based on logs
+              if (prediction.logs) {
+                const logLines = prediction.logs.split('\n').filter(line => line.trim().length > 0);
+
+                // Look for progress indicators in the logs
+                const progressIndicator = logLines.find(line =>
+                  line.includes("progress:") ||
+                  line.includes("step") ||
+                  line.includes("iteration")
+                );
+
+                if (progressIndicator) {
+                  // Try to extract numeric progress if available
+                  const progressMatch = progressIndicator.match(/(\d+)%/) ||
+                                       progressIndicator.match(/progress:\s*(\d+)/) ||
+                                       progressIndicator.match(/step\s*(\d+)/i);
+
+                  if (progressMatch && progressMatch[1]) {
+                    const extractedProgress = parseInt(progressMatch[1], 10);
+                    if (!isNaN(extractedProgress)) {
+                      // Scale the progress to be between 30-95%
+                      progress = Math.min(95, Math.max(30, extractedProgress));
+                    }
+                  }
+                } else {
+                  // If no specific progress indicator, use log line count as a heuristic
+                  // More sophisticated models typically output more log lines
+                  const estimatedTotalLines = prediction.model.includes("llama-3-70b") ? 40 :
+                                             prediction.model.includes("claude") ? 30 : 20;
+
+                  progress = Math.min(95, Math.max(30, Math.round((logLines.length / estimatedTotalLines) * 100)));
+                }
+
+                // Extract the latest log line for status message
+                statusMessage = logLines[logLines.length - 1] || "Processing";
+              } else {
+                // If no logs, use time-based progress estimation
+                const startTime = new Date(prediction.created_at).getTime();
+                const currentTime = Date.now();
+                const elapsedSeconds = (currentTime - startTime) / 1000;
+
+                // Estimate based on model type - larger models take longer
+                const estimatedTotalSeconds = prediction.model.includes("llama-3-70b") ? 60 :
+                                             prediction.model.includes("claude") ? 45 : 30;
+
+                progress = Math.min(95, Math.max(30, Math.round((elapsedSeconds / estimatedTotalSeconds) * 100)));
+                statusMessage = "Processing your request";
+              }
+              break;
+
+            case "starting":
+              // Starting phase - progress between 5-30%
+              const startTime = new Date(prediction.created_at).getTime();
+              const currentTime = Date.now();
+              const elapsedSeconds = (currentTime - startTime) / 1000;
+
+              // Gradually increase from 5% to 30% over 10 seconds
+              progress = Math.min(30, 5 + Math.round((elapsedSeconds / 10) * 25));
+              statusMessage = "Starting generation";
+              break;
+
+            case "failed":
+              progress = 100;
+              data.isComplete = true;
+              statusMessage = "Generation failed";
+              data.content = typeof prediction.error === 'string'
+                ? prediction.error
+                : "An error occurred during generation";
+              break;
+
+            case "canceled":
+              progress = 100;
+              data.isComplete = true;
+              statusMessage = "Generation was canceled";
+              break;
+
+            default:
+              // For any other status, increment progress slightly
+              progress = Math.min(95, data.progress + 5);
+              statusMessage = `Status: ${prediction.status}`;
           }
 
-          // Update the data
+          // Update the data in our map
           this.activeGenerations.set(generationId, {
             progress,
             content: data.content,
             isComplete: data.isComplete,
             lastUpdated: Date.now(),
-            replicatePredictionId: data.replicatePredictionId
+            replicatePredictionId: data.replicatePredictionId,
+            statusMessage
           });
+
+          console.log(`Progress for ${generationId}: ${progress}% - ${statusMessage}`);
         } catch (error) {
           console.error("Error checking Replicate prediction:", error);
+          // On error, increment progress slightly but don't complete
+          const progress = Math.min(95, data.progress + 2);
+          this.activeGenerations.set(generationId, {
+            ...data,
+            progress,
+            lastUpdated: Date.now()
+          });
         }
       }
 
+      // Get the updated data
+      const updatedData = this.activeGenerations.get(generationId)!;
+
       // Return a response that matches the expected format
       return {
-        progress: data.progress,
-        status: data.isComplete ? "complete" : "in_progress",
-        finish_reason: data.isComplete ? "stop" : null,
+        progress: updatedData.progress,
+        status: updatedData.isComplete ? "complete" : "in_progress",
+        finish_reason: updatedData.isComplete ? "stop" : null,
+        statusMessage: updatedData.statusMessage || "",
         choices: [
           {
             message: {
-              content: data.content
+              content: updatedData.content
             }
           }
         ],
         usage: {
-          completion_tokens: data.content.length / 4, // Rough estimate
+          completion_tokens: updatedData.content.length / 4, // Rough estimate
           total_tokens: 1000 // Placeholder
         }
       };
@@ -323,6 +411,7 @@ export class ReplicateProvider implements LLMProvider {
         progress: 100, // Assume it's complete if we don't have it
         status: "complete",
         finish_reason: "stop",
+        statusMessage: "Generation complete (no tracking data available)",
         choices: [],
         usage: {
           completion_tokens: 0,

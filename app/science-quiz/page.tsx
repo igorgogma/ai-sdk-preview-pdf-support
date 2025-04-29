@@ -47,6 +47,7 @@ export default function ScienceQuizGenerator() {
   const [error, setError] = useState<Error | null>(null);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [generationId, setGenerationId] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string>("");
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleQuestionTypeToggle = (type: QuestionType) => {
@@ -76,6 +77,10 @@ export default function ScienceQuizGenerator() {
 
           if (progressData.progress) {
             setGenerationProgress(progressData.progress);
+          }
+
+          if (progressData.statusMessage) {
+            setStatusMessage(progressData.statusMessage);
           }
 
           // If generation is complete, stop checking
@@ -113,6 +118,7 @@ export default function ScienceQuizGenerator() {
       const timeout = setTimeout(() => {
         setGenerationProgress(0);
         setGenerationId(null);
+        setStatusMessage("");
       }, 500);
 
       return () => clearTimeout(timeout);
@@ -408,8 +414,13 @@ export default function ScienceQuizGenerator() {
               )}
             </Button>
             {isLoading && (
-              <div className="w-full mt-2">
+              <div className="w-full mt-2 space-y-2">
                 <Progress value={generationProgress} className="h-2" />
+                {statusMessage && (
+                  <div className="text-xs text-muted-foreground text-center">
+                    {statusMessage}
+                  </div>
+                )}
               </div>
             )}
           </CardFooter>

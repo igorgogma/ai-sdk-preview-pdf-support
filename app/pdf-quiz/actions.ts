@@ -3,6 +3,45 @@
 import { getLLMProvider } from "@/lib/llm-providers";
 
 
+// Function to check generation progress
+export async function checkGenerationProgress(generationId: string) {
+  try {
+    // For server actions, we need to use the absolute URL when running on the server
+    // and a relative URL when running in the browser
+    const baseUrl = typeof window === 'undefined'
+      ? new URL('/api/check-generation', process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').toString()
+      : '/api/check-generation';
+
+    console.log("Using URL for progress check:", baseUrl);
+
+    // Use the URL for the API endpoint
+    const response = await fetch(baseUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ generationId }),
+      // Add cache control to prevent caching issues
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to check generation progress: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error checking generation progress:", error);
+    // Return a default progress value on error
+    return {
+      progress: 50,
+      status: "in_progress",
+      statusMessage: "Checking progress..."
+    };
+  }
+}
+
 export const generateQuizTitle = async (file: string) => {
   try {
     // Get the LLM provider
