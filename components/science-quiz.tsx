@@ -428,11 +428,11 @@ export default function ScienceQuiz({
 
   const currentQuestion = questions[currentQuestionIndex];
 
+  // Update progress based on current question index
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setProgress((currentQuestionIndex / questions.length) * 100);
-    }, 100);
-    return () => clearTimeout(timer);
+    // Calculate progress based on current question index
+    const calculatedProgress = ((currentQuestionIndex + 1) / questions.length) * 100;
+    setProgress(calculatedProgress);
   }, [currentQuestionIndex, questions.length]);
 
   const handleSelectAnswer = (answer: string) => {

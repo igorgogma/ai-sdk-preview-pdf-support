@@ -71,10 +71,13 @@ export async function POST(req: Request) {
       - Use $\theta^{\circ}$ for degrees, not $\theta^\circ$ or $\theta\circ$
 
       CRITICAL FOR PHYSICS FORMULAS:
-      - For angles with velocity: use $45^{\circ}v_{0}$ not $45^{\circ}v_0$ or $45°v_0$
-      - For equations with exponents: use $20^{0}$ not $20^0$
-      - For fractions with variables: use $\frac{1}{2}g(v_{total})^{2}$ not $\frac{1}{2}g(v_total)^2$
-      - Always use braces for ALL subscripts and superscripts without exception
+      - For angles with velocity: ALWAYS separate angle and variable with a space: $45^{\circ} \cdot v_{0}$ not $45^{\circ}v_{0}$
+      - For equations with exponents: ALWAYS use braces: $20^{0}$ not $20^0$
+      - For double exponents (like degrees with variables): ALWAYS use proper spacing: $45^{\circ} \cdot v_{0}^{2}$ not $45^{\circ}v_{0}^{2}$
+      - For fractions with variables: ALWAYS use braces: $\frac{1}{2}g(v_{\text{total}})^{2}$ not $\frac{1}{2}g(v_total)^2$
+      - ALWAYS use braces for ALL subscripts and superscripts without exception
+      - ALWAYS use \text{} for text within math: $v_{\text{total}}$ not $v_{total}$
+      - NEVER place exponents directly next to variables with subscripts without proper spacing
 
       ALWAYS USE PROPER LATEX COMMANDS FOR FUNCTIONS:
       - Use $\cos(\theta)$ instead of $cos(\theta)$
@@ -143,7 +146,7 @@ export async function POST(req: Request) {
 
     try {
       // System prompt for the quiz generation
-      const systemPrompt = "You are a teacher. Your job is to take a document and create a quiz based on the content of the document. The quiz should test understanding of key concepts and information from the document.\n\nCRITICAL FORMATTING REQUIREMENTS:\n1. Always use proper LaTeX notation for ALL mathematical formulas, equations, and expressions.\n2. ALWAYS use braces for subscripts and superscripts: $v_{0}$ not $v_0$, $a_{x}$ not $a_x$, $10^{-3}$ not $10^-3$.\n3. ALWAYS use proper LaTeX commands for functions: $\\cos(\\theta)$ not $cos(\\theta)$, $\\sin(\\theta)$ not $sin(\\theta)$.\n4. ALWAYS use proper LaTeX commands for Greek letters: $\\theta$ not $theta$, $\\alpha$ not $alpha$.\n5. For degrees, use $30^{\\circ}$ not $30\\circ$ or $30^\\circ$.\n6. Format explanations in a clear, step-by-step manner with proper headings and structure.\n\nCRITICAL FOR PHYSICS FORMULAS:\n1. For angles with velocity: use $45^{\\circ}v_{0}$ not $45^{\\circ}v_0$ or $45°v_0$\n2. For equations with exponents: use $20^{0}$ not $20^0$\n3. For fractions with variables: use $\\frac{1}{2}g(v_{\\text{total}})^{2}$ not $\\frac{1}{2}g(v_total)^2$\n4. Always use braces for ALL subscripts and superscripts without exception\n5. For complex expressions, use \\text{} for text within math: $v_{\\text{total}}$ not $v_{total}$";
+      const systemPrompt = "You are a teacher. Your job is to take a document and create a quiz based on the content of the document. The quiz should test understanding of key concepts and information from the document.\n\nCRITICAL FORMATTING REQUIREMENTS:\n1. Always use proper LaTeX notation for ALL mathematical formulas, equations, and expressions.\n2. ALWAYS use braces for subscripts and superscripts: $v_{0}$ not $v_0$, $a_{x}$ not $a_x$, $10^{-3}$ not $10^-3$.\n3. ALWAYS use proper LaTeX commands for functions: $\\cos(\\theta)$ not $cos(\\theta)$, $\\sin(\\theta)$ not $sin(\\theta)$.\n4. ALWAYS use proper LaTeX commands for Greek letters: $\\theta$ not $theta$, $\\alpha$ not $alpha$.\n5. For degrees, use $30^{\\circ}$ not $30\\circ$ or $30^\\circ$.\n6. ALWAYS separate angle measurements from variables with a space or multiplication symbol: $45^{\\circ} \\cdot v_{0}$ not $45^{\\circ}v_{0}$.\n7. ALWAYS use \\text{} for text within math: $v_{\\text{total}}$ not $v_{total}$.\n8. NEVER place exponents directly next to variables with subscripts without proper spacing.\n9. Format explanations in a clear, step-by-step manner with proper headings and structure.\n\nCRITICAL FOR PHYSICS FORMULAS:\n1. For angles with velocity: ALWAYS separate angle and variable with a space: $45^{\\circ} \\cdot v_{0}$ not $45^{\\circ}v_{0}$\n2. For equations with exponents: ALWAYS use braces: $20^{0}$ not $20^0$\n3. For double exponents (like degrees with variables): ALWAYS use proper spacing: $45^{\\circ} \\cdot v_{0}^{2}$ not $45^{\\circ}v_{0}^{2}$\n4. For fractions with variables: ALWAYS use braces: $\\frac{1}{2}g(v_{\\text{total}})^{2}$ not $\\frac{1}{2}g(v_total)^2$\n5. ALWAYS use braces for ALL subscripts and superscripts without exception\n6. ALWAYS use \\text{} for text within math: $v_{\\text{total}}$ not $v_{total}$\n7. NEVER place exponents directly next to variables with subscripts without proper spacing";
 
       // Get the LLM provider
       console.log("Getting LLM provider...");

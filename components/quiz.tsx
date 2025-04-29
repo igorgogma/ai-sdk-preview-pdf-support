@@ -85,11 +85,11 @@ export default function Quiz({
   const [score, setScore] = useState<number | null>(null);
   const [progress, setProgress] = useState(0);
 
+  // Update progress based on current question index
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setProgress((currentQuestionIndex / questions.length) * 100);
-    }, 100);
-    return () => clearTimeout(timer);
+    // Calculate progress based on current question index
+    const calculatedProgress = ((currentQuestionIndex + 1) / questions.length) * 100;
+    setProgress(calculatedProgress);
   }, [currentQuestionIndex, questions.length]);
 
   const handleSelectAnswer = (answer: string) => {

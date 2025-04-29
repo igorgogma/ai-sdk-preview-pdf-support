@@ -140,7 +140,7 @@ export default function MathFormula({ formula, display = false, autoDetect = fal
               displayMath: [['$$', '$$'], ['\\[', '\\]']],
               processEscapes: true,
               processEnvironments: true,
-              packages: ['base', 'ams', 'noerrors', 'noundefined', 'newcommand', 'boldsymbol', 'mhchem', 'physics', 'cancel', 'color', 'enclose'],
+              packages: ['base', 'ams', 'noerrors', 'noundefined', 'newcommand', 'boldsymbol', 'mhchem', 'physics', 'cancel', 'color', 'enclose', 'textmacros', 'configmacros', 'action'],
               tags: 'ams',
               tagSide: 'right',
               tagIndent: '0.8em',
@@ -194,10 +194,16 @@ export default function MathFormula({ formula, display = false, autoDetect = fal
                 'deg': '^{\\circ}',
 
                 // Physics specific macros for the screenshots
-                'angv': '45^{\\circ}v_{0}',
+                'angv': '45^{\\circ} \\cdot v_{0}',
                 'vtotal': 'v_{\\text{total}}',
                 'fracg': '\\frac{1}{2}g(v_{\\text{total}})^{2}',
-                'fracgv': '\\frac{1}{g}v_{\\text{total}}^{2}'
+                'fracgv': '\\frac{1}{g}v_{\\text{total}}^{2}',
+
+                // Double exponent macros
+                'degv': '^{\\circ} \\cdot v_{0}',
+                'degvsq': '^{\\circ} \\cdot v_{0}^{2}',
+                'degvt': '^{\\circ} \\cdot v_{\\text{total}}',
+                'degvtsq': '^{\\circ} \\cdot v_{\\text{total}}^{2}'
               }
             },
             svg: {
@@ -392,7 +398,23 @@ export default function MathFormula({ formula, display = false, autoDetect = fal
             // Fix the specific formulas in screenshot 2
             .replace(/\\frac1(\d+)g\(v_\{?total\}?\)\^2/g, '$\\frac{1}{$1}g(v_{\\text{total}})^{2}$')
             .replace(/\\frac(\d+)g\(v_\{?total\}?\)\^2/g, '$\\frac{1}{$1}g(v_{\\text{total}})^{2}$')
-            .replace(/g\(v_\{?total\}?\)\^2/g, '$g(v_{\\text{total}})^{2}$');
+            .replace(/g\(v_\{?total\}?\)\^2/g, '$g(v_{\\text{total}})^{2}$')
+
+            // Fix double exponents and angle-variable combinations
+            .replace(/(\d+)°v_(\w+)/g, '$1^{\\circ} \\cdot v_{$2}')
+            .replace(/(\d+)\^\\circ v_(\w+)/g, '$1^{\\circ} \\cdot v_{$2}')
+            .replace(/(\d+)\^\\circ v_\{(\w+)\}/g, '$1^{\\circ} \\cdot v_{$2}')
+            .replace(/(\d+)°v_\{(\w+)\}/g, '$1^{\\circ} \\cdot v_{$2}')
+
+            // Fix double exponents with variables
+            .replace(/(\d+)°v_(\w+)\^(\d+)/g, '$1^{\\circ} \\cdot v_{$2}^{$3}')
+            .replace(/(\d+)\^\\circ v_(\w+)\^(\d+)/g, '$1^{\\circ} \\cdot v_{$2}^{$3}')
+            .replace(/(\d+)\^\\circ v_\{(\w+)\}\^(\d+)/g, '$1^{\\circ} \\cdot v_{$2}^{$3}')
+            .replace(/(\d+)°v_\{(\w+)\}\^(\d+)/g, '$1^{\\circ} \\cdot v_{$2}^{$3}')
+
+            // Fix exponents without braces
+            .replace(/\^(\d+)([^{]|$)/g, '^{$1}$2')
+            .replace(/\^([a-zA-Z])([^{]|$)/g, '^{$1}$2');
 
           // Check if the formula already contains dollar signs
           const hasDollarSigns = /\$|\$\$/.test(processedFormula);

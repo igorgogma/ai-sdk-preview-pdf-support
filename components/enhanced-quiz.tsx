@@ -35,12 +35,16 @@ export default function EnhancedQuiz({
   const [progress, setProgress] = useState(0);
   const [showReview, setShowReview] = useState(false);
   const [textScores, setTextScores] = useState<Record<string, number>>({});
-  const [totalScore, setTotalScore] = useState<number | null>(null);
+  // We don't need totalScore as it's redundant with score
+  // const [totalScore, setTotalScore] = useState<number | null>(null);
 
   const currentQuestion = questions[currentQuestionIndex];
 
+  // Update progress based on current question index
   useEffect(() => {
-    setProgress(((currentQuestionIndex + 1) / questions.length) * 100);
+    // Calculate progress based on current question index
+    const calculatedProgress = ((currentQuestionIndex + 1) / questions.length) * 100;
+    setProgress(calculatedProgress);
   }, [currentQuestionIndex, questions.length]);
 
   const handleSelectAnswer = (answer: string) => {
@@ -48,7 +52,7 @@ export default function EnhancedQuiz({
 
     setAnswers({
       ...answers,
-      [currentQuestion.id]: answer,
+      [currentQuestion.id as string]: answer,
     });
   };
 
@@ -57,7 +61,7 @@ export default function EnhancedQuiz({
 
     setAnswers({
       ...answers,
-      [currentQuestion.id]: answer,
+      [currentQuestion.id as string]: answer,
     });
   };
 
@@ -81,11 +85,11 @@ export default function EnhancedQuiz({
     let totalAnswered = 0;
 
     // Process text-based answers
-    const textAnswerPromises = [];
+    // No need for promises as we're calculating similarity synchronously
     const newTextScores: Record<string, number> = {};
 
     for (const question of questions) {
-      const userAnswer = answers[question.id] || "";
+      const userAnswer = answers[question.id as string] || "";
 
       if (userAnswer) {
         totalAnswered++;
@@ -97,7 +101,7 @@ export default function EnhancedQuiz({
         } else {
           // For text-based answers, we'll calculate similarity
           const similarity = calculateSimilarity(userAnswer, question.correctAnswer);
-          newTextScores[question.id] = similarity;
+          newTextScores[question.id as string] = similarity;
 
           // If similarity is above 0.7, consider it correct
           if (similarity > 0.7) {
@@ -112,7 +116,6 @@ export default function EnhancedQuiz({
     // Calculate final score
     const finalScore = totalAnswered > 0 ? (correctCount / totalAnswered) * 100 : 0;
     setScore(Math.round(finalScore));
-    setTotalScore(Math.round(finalScore));
   };
 
   const calculateSimilarity = (userAnswer: string, correctAnswer: string): number => {
@@ -136,7 +139,6 @@ export default function EnhancedQuiz({
     setScore(null);
     setCurrentQuestionIndex(0);
     setTextScores({});
-    setTotalScore(null);
     setShowReview(false);
   };
 
@@ -322,8 +324,9 @@ export default function EnhancedQuiz({
   };
 
   const renderQuestionCard = () => {
-    const userAnswer = answers[currentQuestion.id] || null;
-    const textScoreData = textScores[currentQuestion.id];
+    // Use type assertion to fix TypeScript errors
+    const userAnswer = answers[currentQuestion.id as string] || null;
+    const textScoreData = textScores[currentQuestion.id as string];
 
     if (currentQuestion.type === "multiple-choice") {
       return (
@@ -402,25 +405,25 @@ export default function EnhancedQuiz({
                 {question.type === "multiple-choice" ? (
                   <MultipleChoiceQuestionCard
                     question={question as EnhancedQuestion & { type: "multiple-choice" }}
-                    selectedAnswer={answers[question.id] || null}
+                    selectedAnswer={answers[question.id as string] || null}
                     onSelectAnswer={() => {}}
                     isSubmitted={true}
                   />
                 ) : question.type === "definition" ? (
                   <DefinitionQuestionCard
                     question={question as EnhancedQuestion & { type: "definition" }}
-                    userAnswer={answers[question.id] || null}
+                    userAnswer={answers[question.id as string] || null}
                     onAnswerChange={() => {}}
                     isSubmitted={true}
-                    score={textScores[question.id]}
+                    score={textScores[question.id as string]}
                   />
                 ) : (
                   <ProblemSolvingQuestionCard
                     question={question as EnhancedQuestion & { type: "problem-solving" }}
-                    userAnswer={answers[question.id] || null}
+                    userAnswer={answers[question.id as string] || null}
                     onAnswerChange={() => {}}
                     isSubmitted={true}
-                    score={textScores[question.id]}
+                    score={textScores[question.id as string]}
                   />
                 )}
               </CardContent>
@@ -543,7 +546,7 @@ export default function EnhancedQuiz({
                 ) : (
                   <Button
                     onClick={handleNextQuestion}
-                    disabled={!answers[currentQuestion.id]}
+                    disabled={!answers[currentQuestion.id as string]}
                   >
                     Next <ChevronRight className="ml-2 h-4 w-4" />
                   </Button>
