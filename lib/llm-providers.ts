@@ -124,7 +124,7 @@ export class ReplicateProvider implements LLMProvider {
 
     try {
       // leg
-      const model = options.model || "anthropic/claude-3.7-sonnet";
+      const model = options.model || "anthropic/claude-3.5-sonnet";
 
       // Generate a unique ID for this request
       const generationId = `replicate-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
