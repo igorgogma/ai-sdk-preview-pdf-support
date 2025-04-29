@@ -123,8 +123,8 @@ export class ReplicateProvider implements LLMProvider {
     console.log("Using Replicate API");
 
     try {
-      // Default model is Llama 3 70B
-      const model = options.model || "meta/llama-3-70b-instruct:2d19859030ff705a87c746f7e96eea03aefb71f166725aee39692f1476566d48";
+      // leg
+      const model = options.model || "anthropic/claude-3.7-sonnet";
 
       // Generate a unique ID for this request
       const generationId = `replicate-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
