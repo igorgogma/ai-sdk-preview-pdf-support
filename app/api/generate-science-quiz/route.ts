@@ -331,16 +331,157 @@ export async function POST(req: Request) {
 
                   if (jsonMatch) {
                     let extractedJson = jsonMatch[1] || jsonMatch[0];
-                    // Remove control characters that can break JSON parsing
+
+                    // Apply the same LaTeX escaping fixes as above
+                    console.log("Fixing LaTeX escaping in direct response");
+
+                    // First, remove control characters that can break JSON parsing
                     extractedJson = extractedJson.replace(/[\u0000-\u001F\u007F-\u009F]/g, "");
-                    parsedContent = JSON.parse(extractedJson);
-                    console.log("Extracted content directly from response text");
+
+                    try {
+                      // First attempt: Try to parse as is
+                      parsedContent = JSON.parse(extractedJson);
+                      console.log("Extracted content directly from response text");
+                    } catch (initialDirectParseError) {
+                      console.log("Initial direct parse failed, attempting to fix LaTeX backslashes");
+
+                      // Second attempt: Apply LaTeX escaping fixes
+                      try {
+                        // Replace \\ with a temporary placeholder
+                        let fixedJson = extractedJson.replace(/\\\\/g, "DOUBLE_BACKSLASH_PLACEHOLDER");
+
+                        // Replace single backslashes that are likely part of LaTeX with double backslashes
+                        fixedJson = fixedJson.replace(/\\([a-zA-Z]+|[^a-zA-Z])/g, "\\\\$1");
+
+                        // Restore original double backslashes
+                        fixedJson = fixedJson.replace(/DOUBLE_BACKSLASH_PLACEHOLDER/g, "\\\\");
+
+                        // Fix common LaTeX escaping issues
+                        fixedJson = fixedJson
+                          // Fix escaped quotes inside strings
+                          .replace(/\\\\"/g, '\\\\"')
+                          // Fix double escaped backslashes
+                          .replace(/\\\\\\\\/g, "\\\\\\\\")
+                          // Fix escaped braces
+                          .replace(/\\\\{/g, "\\\\{")
+                          .replace(/\\\\}/g, "\\\\}")
+                          // Fix escaped dollars
+                          .replace(/\\\\$/g, "\\\\$");
+
+                        console.log("Attempting to parse fixed JSON");
+                        parsedContent = JSON.parse(fixedJson);
+                        console.log("Successfully parsed fixed JSON");
+                      } catch (fixedDirectParseError) {
+                        console.error("Fixed direct parse also failed:", fixedDirectParseError);
+
+                        // Third attempt: Try more aggressive fixing
+                        try {
+                          // More aggressive approach: replace all backslashes with double backslashes
+                          let aggressiveFixedJson = extractedJson.replace(/\\/g, "\\\\");
+
+                          // Fix double escaped quotes
+                          aggressiveFixedJson = aggressiveFixedJson.replace(/\\\\\"/g, '\\"');
+
+                          console.log("Attempting aggressive JSON fixing");
+                          parsedContent = JSON.parse(aggressiveFixedJson);
+                          console.log("Successfully parsed with aggressive fixing");
+                        } catch (aggressiveFixError) {
+                          console.error("Aggressive fix also failed:", aggressiveFixError);
+                          throw new Error("Failed to parse direct response after multiple attempts");
+                        }
+                      }
+                    }
                   } else {
                     throw new Error("Could not extract JSON from response text");
                   }
                 } catch (directParseError) {
                   console.error("Direct parse failed:", directParseError);
-                  throw new Error("Failed to parse response in any format");
+
+                  // Try one more approach: manual regex extraction of questions
+                  try {
+                    console.log("Attempting manual extraction from direct response");
+
+                    // Extract questions array using regex
+                    const questionsMatch = response.text.match(/"questions"\s*:\s*\[([\s\S]*?)\]\s*\}/);
+
+                    if (questionsMatch && questionsMatch[1]) {
+                      const questionsContent = questionsMatch[1];
+
+                      // Split by question objects
+                      const questionObjects = questionsContent.split(/\},\s*\{/).map((q: string, i: number) => {
+                        // Add back the curly braces except for first and last
+                        if (i === 0) return q + '}';
+                        if (i === questionsContent.split(/\},\s*\{/).length - 1) return '{' + q;
+                        return '{' + q + '}';
+                      });
+
+                      // Parse each question individually
+                      const questions = [];
+                      for (const qObj of questionObjects) {
+                        try {
+                          // Extract fields using regex
+                          const typeMatch = qObj.match(/"type"\s*:\s*"([^"]+)"/);
+                          const questionMatch = qObj.match(/"question"\s*:\s*"([^"]+)"/);
+                          const correctAnswerMatch = qObj.match(/"correctAnswer"\s*:\s*"([^"]+)"/);
+                          const explanationMatch = qObj.match(/"explanation"\s*:\s*"([^"]+)"/);
+
+                          // For multiple choice, extract options
+                          const optionsMatch = qObj.match(/"options"\s*:\s*\[([\s\S]*?)\]/);
+                          let options: string[] = [];
+
+                          if (optionsMatch && optionsMatch[1]) {
+                            options = optionsMatch[1].split(/",\s*"/).map((opt: string) => {
+                              return opt.replace(/^"/, '').replace(/"$/, '');
+                            });
+                          }
+
+                          // Create question object with proper typing
+                          const question: {
+                            type: string;
+                            question: string;
+                            correctAnswer: string;
+                            explanation: string;
+                            options?: string[];
+                            steps?: string[];
+                          } = {
+                            type: typeMatch ? typeMatch[1] : "unknown",
+                            question: questionMatch ? questionMatch[1].replace(/\\"/g, '"') : "Unknown question",
+                            correctAnswer: correctAnswerMatch ? correctAnswerMatch[1].replace(/\\"/g, '"') : "",
+                            explanation: explanationMatch ? explanationMatch[1].replace(/\\"/g, '"') : ""
+                          };
+
+                          if (options.length > 0) {
+                            question.options = options;
+                          }
+
+                          // For problem-solving, extract steps
+                          const stepsMatch = qObj.match(/"steps"\s*:\s*\[([\s\S]*?)\]/);
+                          if (stepsMatch && stepsMatch[1]) {
+                            const steps = stepsMatch[1].split(/",\s*"/).map((step: string) => {
+                              return step.replace(/^"/, '').replace(/"$/, '');
+                            });
+                            question.steps = steps;
+                          }
+
+                          questions.push(question);
+                        } catch (qError) {
+                          console.error("Error parsing individual question:", qError);
+                        }
+                      }
+
+                      if (questions.length > 0) {
+                        parsedContent = { questions };
+                        console.log("Successfully extracted questions manually");
+                      } else {
+                        throw new Error("Failed to extract any questions");
+                      }
+                    } else {
+                      throw new Error("Could not find questions array in direct response");
+                    }
+                  } catch (manualExtractionError) {
+                    console.error("Manual extraction from direct response failed:", manualExtractionError);
+                    throw new Error("Failed to parse response in any format");
+                  }
                 }
               } else {
                 console.error("Unexpected API response structure:", data);

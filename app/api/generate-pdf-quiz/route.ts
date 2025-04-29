@@ -197,7 +197,60 @@ export async function POST(req: Request) {
             const jsonMatch = content.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
               try {
-                parsedContent = JSON.parse(jsonMatch[0]);
+                // First attempt: Try to parse the extracted JSON directly
+                let extractedJson = jsonMatch[0];
+
+                try {
+                  parsedContent = JSON.parse(extractedJson);
+                } catch (initialExtractError) {
+                  console.log("Initial extract parse failed, attempting to fix LaTeX backslashes");
+
+                  // Second attempt: Apply LaTeX escaping fixes
+                  try {
+                    // Replace \\ with a temporary placeholder
+                    let fixedJson = extractedJson.replace(/\\\\/g, "DOUBLE_BACKSLASH_PLACEHOLDER");
+
+                    // Replace single backslashes that are likely part of LaTeX with double backslashes
+                    fixedJson = fixedJson.replace(/\\([a-zA-Z]+|[^a-zA-Z])/g, "\\\\$1");
+
+                    // Restore original double backslashes
+                    fixedJson = fixedJson.replace(/DOUBLE_BACKSLASH_PLACEHOLDER/g, "\\\\");
+
+                    // Fix common LaTeX escaping issues
+                    fixedJson = fixedJson
+                      // Fix escaped quotes inside strings
+                      .replace(/\\\\"/g, '\\\\"')
+                      // Fix double escaped backslashes
+                      .replace(/\\\\\\\\/g, "\\\\\\\\")
+                      // Fix escaped braces
+                      .replace(/\\\\{/g, "\\\\{")
+                      .replace(/\\\\}/g, "\\\\}")
+                      // Fix escaped dollars
+                      .replace(/\\\\$/g, "\\\\$");
+
+                    console.log("Attempting to parse fixed JSON");
+                    parsedContent = JSON.parse(fixedJson);
+                    console.log("Successfully parsed fixed JSON");
+                  } catch (fixedExtractError) {
+                    console.error("Fixed extract parse also failed:", fixedExtractError);
+
+                    // Third attempt: Try more aggressive fixing
+                    try {
+                      // More aggressive approach: replace all backslashes with double backslashes
+                      let aggressiveFixedJson = extractedJson.replace(/\\/g, "\\\\");
+
+                      // Fix double escaped quotes
+                      aggressiveFixedJson = aggressiveFixedJson.replace(/\\\\\"/g, '\\"');
+
+                      console.log("Attempting aggressive JSON fixing");
+                      parsedContent = JSON.parse(aggressiveFixedJson);
+                      console.log("Successfully parsed with aggressive fixing");
+                    } catch (aggressiveFixError) {
+                      console.error("Aggressive fix also failed:", aggressiveFixError);
+                      throw new Error("Failed to parse extracted JSON after multiple attempts");
+                    }
+                  }
+                }
               } catch (extractError) {
                 console.error("Error parsing extracted JSON:", extractError);
 
