@@ -31,12 +31,24 @@ export async function generateScienceQuiz(params: QuizParams) {
 
     console.log("Using base URL:", baseUrl);
 
+    // For server-to-server requests, we need to add the appropriate headers
+    // and handle cross-origin requests properly
     const response = await fetch(`${baseUrl}/api/generate-science-quiz`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        // Add authorization if needed
+        ...(process.env.OPENROUTER_API_KEY && {
+          "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`
+        }),
+        // Add CORS headers
+        "Origin": baseUrl,
       },
+      // Important: include credentials for authenticated requests
+      credentials: "include",
       body: JSON.stringify(validatedParams),
+      // Add cache control to prevent caching issues
+      cache: "no-store",
     });
 
     // Log the response for debugging
@@ -108,12 +120,24 @@ export async function checkGenerationProgress(generationId: string) {
 
     console.log("Using base URL for progress check:", baseUrl);
 
+    // For server-to-server requests, we need to add the appropriate headers
+    // and handle cross-origin requests properly
     const response = await fetch(`${baseUrl}/api/check-generation`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        // Add authorization if needed
+        ...(process.env.OPENROUTER_API_KEY && {
+          "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`
+        }),
+        // Add CORS headers
+        "Origin": baseUrl,
       },
+      // Important: include credentials for authenticated requests
+      credentials: "include",
       body: JSON.stringify({ generationId }),
+      // Add cache control to prevent caching issues
+      cache: "no-store",
     });
 
     // Log the response for debugging

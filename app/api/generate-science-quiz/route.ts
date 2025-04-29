@@ -17,6 +17,8 @@ const quizParamsSchema = z.object({
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export async function POST(req: Request) {
+  // Log request headers for debugging
+  console.log("Request headers:", Object.fromEntries([...req.headers.entries()]));
   try {
     const body = await req.json();
     const validatedParams = quizParamsSchema.parse(body);
@@ -35,7 +37,17 @@ export async function POST(req: Request) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          // Add authorization if needed
+          ...(process.env.OPENROUTER_API_KEY && {
+            "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`
+          }),
+          // Add CORS headers
+          "Origin": baseUrl,
         },
+        // Important: include credentials for authenticated requests
+        credentials: "include",
+        // Add cache control to prevent caching issues
+        cache: "no-store",
         body: JSON.stringify({
           query: validatedParams.topic,
           subject: validatedParams.subject,
