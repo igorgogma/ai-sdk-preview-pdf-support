@@ -140,9 +140,13 @@ export default function MathFormula({ formula, display = false, autoDetect = fal
               displayMath: [['$$', '$$'], ['\\[', '\\]']],
               processEscapes: true,
               processEnvironments: true,
-              packages: ['base', 'ams', 'noerrors', 'noundefined', 'newcommand', 'boldsymbol', 'mhchem'],
+              packages: ['base', 'ams', 'noerrors', 'noundefined', 'newcommand', 'boldsymbol', 'mhchem', 'physics'],
+              tags: 'ams',
+              tagSide: 'right',
+              tagIndent: '0.8em',
+              multlineWidth: '85%',
               macros: {
-                'frac': ['\\frac{#1}{#2}', 2],
+                // Greek letters
                 'omega': '\\omega',
                 'alpha': '\\alpha',
                 'beta': '\\beta',
@@ -152,6 +156,9 @@ export default function MathFormula({ formula, display = false, autoDetect = fal
                 'lambda': '\\lambda',
                 'sigma': '\\sigma',
                 'pi': '\\pi',
+                'phi': '\\phi',
+
+                // Common physics variables
                 'L': 'L',
                 'I': 'I',
                 'M': 'M',
@@ -162,9 +169,26 @@ export default function MathFormula({ formula, display = false, autoDetect = fal
                 'E': 'E',
                 'm': 'm',
                 'c': 'c',
+
+                // Common symbols
                 'rightarrow': '\\rightarrow',
                 'Delta': '\\Delta',
-                'circ': '\\circ'
+                'circ': '\\circ',
+
+                // Physics notation
+                'vO': '{v_0}',
+                'vx': '{v_x}',
+                'vy': '{v_y}',
+                'ax': '{a_x}',
+                'ay': '{a_y}',
+
+                // Common functions
+                'cos': '\\cos',
+                'sin': '\\sin',
+                'tan': '\\tan',
+
+                // Degree symbol
+                'deg': '^{\\circ}'
               }
             },
             svg: {
@@ -205,6 +229,32 @@ export default function MathFormula({ formula, display = false, autoDetect = fal
             // Fix subscripts without braces (e.g., v_0 -> v_{0}, theta_0 -> theta_{0})
             .replace(/([a-zA-Z]+)_([a-zA-Z0-9]+)(?!\{)/g, '$1_{$2}')
 
+            // Fix specific physics variables with subscripts
+            .replace(/v_0/g, 'v_{0}')
+            .replace(/v_x/g, 'v_{x}')
+            .replace(/v_y/g, 'v_{y}')
+            .replace(/v_theta/g, 'v_{\\theta}')
+            .replace(/v_Otheta/g, 'v_{0\\theta}')
+            .replace(/a_x/g, 'a_{x}')
+            .replace(/a_y/g, 'a_{y}')
+            .replace(/F_x/g, 'F_{x}')
+            .replace(/F_y/g, 'F_{y}')
+
+            // Fix angle notation
+            .replace(/theta/g, '\\theta')
+            .replace(/alpha/g, '\\alpha')
+            .replace(/beta/g, '\\beta')
+            .replace(/gamma/g, '\\gamma')
+            .replace(/delta/g, '\\delta')
+            .replace(/omega/g, '\\omega')
+            .replace(/phi/g, '\\phi')
+
+            // Fix degree symbol (multiple patterns)
+            .replace(/(\d+)\s*circ/g, '$1^{\\circ}')
+            .replace(/(\d+)\s*°/g, '$1^{\\circ}')
+            .replace(/(\d+)\s*\\circ/g, '$1^{\\circ}')
+            .replace(/(\d+)\s*\\degree/g, '$1^{\\circ}')
+
             // Fix subscripts and superscripts with braces
             .replace(/\_\{([^{}]+)\}/g, '_{$1}')
             .replace(/\^\{([^{}]+)\}/g, '^{$1}')
@@ -215,8 +265,8 @@ export default function MathFormula({ formula, display = false, autoDetect = fal
             .replace(/\\theta/g, '\\theta')
 
             // Fix common formatting issues with L, I, M
-            .replace(/L\s*\^\s*2/g, 'L^2')
-            .replace(/M\s*L\s*\^\s*2/g, 'ML^2')
+            .replace(/L\s*\^\s*2/g, 'L^{2}')
+            .replace(/M\s*L\s*\^\s*2/g, 'ML^{2}')
 
             // Fix issues with \text or \mathrm
             .replace(/\\text\{([^{}]+)\}/g, '\\text{$1}')
@@ -229,20 +279,40 @@ export default function MathFormula({ formula, display = false, autoDetect = fal
             // Fix missing braces for superscripts
             .replace(/(\w)(\d+)(?!\w|\})/g, '$1^{$2}')
 
-            // Fix missing braces for subscripts in variables
-            .replace(/v_0/g, 'v_{0}')
-            .replace(/v_theta/g, 'v_{\\theta}')
-            .replace(/v_Otheta/g, 'v_{0\\theta}')
-
-            // Fix Delta H
+            // Fix Delta H and other Greek symbols
             .replace(/Delta\s*H/g, '\\Delta H')
-
-            // Fix degree symbol
-            .replace(/(\d+)\s*circ/g, '$1\\circ')
+            .replace(/Delta/g, '\\Delta')
 
             // Fix specific physics notation
             .replace(/\\theta\\theta/g, '\\theta')
-            .replace(/R\s*=\s*\\frac\{v_0\^2\s*\\sin\(2\\theta\)\}\{g\}/g, 'R = \\frac{v_{0}^{2}\\sin(2\\theta)}{g}');
+            .replace(/R\s*=\s*\\frac\{v_0\^2\s*\\sin\(2\\theta\)\}\{g\}/g, 'R = \\frac{v_{0}^{2}\\sin(2\\theta)}{g}')
+
+            // Fix vector notation
+            .replace(/\\vec\{([^{}]+)\}/g, '\\vec{$1}')
+            .replace(/\\vec ([a-zA-Z])/g, '\\vec{$1}')
+
+            // Fix specific issues from the screenshots
+            .replace(/v0\s*=\s*(\d+)/g, 'v_{0} = $1')
+            .replace(/v_0\s*=\s*(\d+)/g, 'v_{0} = $1')
+            .replace(/cos\((\d+)°\)/g, '\\cos($1^{\\circ})')
+            .replace(/cos\((\d+)\\circ\)/g, '\\cos($1^{\\circ})')
+            .replace(/cos\(\\theta\)/g, '\\cos(\\theta)')
+            .replace(/sin\(\\theta\)/g, '\\sin(\\theta)')
+            .replace(/cos\(theta\)/g, '\\cos(\\theta)')
+            .replace(/sin\(theta\)/g, '\\sin(\\theta)')
+
+            // Fix trigonometric functions
+            .replace(/cos\(/g, '\\cos(')
+            .replace(/sin\(/g, '\\sin(')
+            .replace(/tan\(/g, '\\tan(')
+
+            // Fix specific velocity notation from screenshots
+            .replace(/v_0\s*=\s*(\d+)v_0\s*=\s*(\d+)/g, 'v_{0} = $1')
+            .replace(/v_0\s*=\s*(\d+)\^(\d+)/g, 'v_{0} = $1^{$2}')
+            .replace(/v_0\s*=\s*(\d+)\^(\w+)/g, 'v_{0} = $1^{$2}')
+
+            // Fix equals sign spacing
+            .replace(/(\w+)\s*=\s*(\w+)/g, '$1 = $2');
 
           // Check if the formula already contains dollar signs
           const hasDollarSigns = /\$|\$\$/.test(processedFormula);

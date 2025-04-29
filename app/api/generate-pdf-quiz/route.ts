@@ -60,6 +60,37 @@ export async function POST(req: Request) {
       7. Connect the concept to the broader topic
       8. Include a "Key Takeaway" section at the end summarizing the main learning points
 
+      MATHEMATICAL NOTATION REQUIREMENTS:
+      CRITICAL: For all mathematical formulas, equations, and expressions, use proper LaTeX notation with dollar signs.
+
+      ALWAYS USE BRACES FOR SUBSCRIPTS AND SUPERSCRIPTS:
+      - Use $v_{0}$ instead of $v_0$
+      - Use $a_{x}$ instead of $a_x$
+      - Use $F_{net}$ instead of $F_net$
+      - Use $10^{-3}$ instead of $10^-3$
+      - Use $\theta^{\circ}$ for degrees, not $\theta^\circ$ or $\theta\circ$
+
+      ALWAYS USE PROPER LATEX COMMANDS FOR FUNCTIONS:
+      - Use $\cos(\theta)$ instead of $cos(\theta)$
+      - Use $\sin(\theta)$ instead of $sin(\theta)$
+      - Use $\tan(\theta)$ instead of $tan(\theta)$
+      - Use $\log(x)$ instead of $log(x)$
+
+      ALWAYS USE PROPER LATEX COMMANDS FOR GREEK LETTERS:
+      - Use $\theta$ instead of $theta$
+      - Use $\alpha$ instead of $alpha$
+      - Use $\omega$ instead of $omega$
+
+      EXAMPLES OF CORRECT FORMATTING:
+      - "The velocity is $v = 5$ m/s"
+      - "The initial velocity is $v_{0} = 10$ m/s"
+      - "The angle is $\theta = 30^{\circ}$"
+      - "The acceleration is $a = 9.8$ m/s$^{2}$"
+      - "The formula $F = ma$"
+      - "The equation $E = mc^{2}$"
+      - "The horizontal component is $v_{x} = v_{0}\cos(\theta)$"
+      - "The vertical component is $v_{y} = v_{0}\sin(\theta)$"
+
       RESPONSE FORMAT:
       You must format your response as a valid JSON object with the following structure:
       {
@@ -106,7 +137,7 @@ export async function POST(req: Request) {
 
     try {
       // System prompt for the quiz generation
-      const systemPrompt = "You are a teacher. Your job is to take a document and create a quiz based on the content of the document. The quiz should test understanding of key concepts and information from the document.";
+      const systemPrompt = "You are a teacher. Your job is to take a document and create a quiz based on the content of the document. The quiz should test understanding of key concepts and information from the document.\n\nCRITICAL FORMATTING REQUIREMENTS:\n1. Always use proper LaTeX notation for ALL mathematical formulas, equations, and expressions.\n2. ALWAYS use braces for subscripts and superscripts: $v_{0}$ not $v_0$, $a_{x}$ not $a_x$, $10^{-3}$ not $10^-3$.\n3. ALWAYS use proper LaTeX commands for functions: $\\cos(\\theta)$ not $cos(\\theta)$, $\\sin(\\theta)$ not $sin(\\theta)$.\n4. ALWAYS use proper LaTeX commands for Greek letters: $\\theta$ not $theta$, $\\alpha$ not $alpha$.\n5. For degrees, use $30^{\\circ}$ not $30\\circ$ or $30^\\circ$.\n6. Format explanations in a clear, step-by-step manner with proper headings and structure.";
 
       // Get the LLM provider
       console.log("Getting LLM provider...");

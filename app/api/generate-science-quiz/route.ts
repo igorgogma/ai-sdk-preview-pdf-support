@@ -75,12 +75,35 @@ export async function POST(req: Request) {
 
       MATHEMATICAL NOTATION REQUIREMENTS:
       CRITICAL: For all mathematical formulas, equations, and expressions, use proper LaTeX notation with dollar signs.
-      For example:
-      - Use "The velocity is $v = 5$ m/s" instead of "The velocity is v = 5 m/s"
-      - Use "The acceleration is $a = 9.8$ m/s$^2$" instead of "The acceleration is a = 9.8 m/s^2"
-      - Use "The formula $F = ma$" instead of "The formula F = ma"
-      - Use "The equation $E = mc^2$" instead of "The equation E = mc^2"
-      - For complex equations, use double dollar signs: "$$E = \\frac{V}{r} \\ln\\left(\\frac{d}{r}\\right)$$"
+
+      ALWAYS USE BRACES FOR SUBSCRIPTS AND SUPERSCRIPTS:
+      - Use $v_{0}$ instead of $v_0$
+      - Use $a_{x}$ instead of $a_x$
+      - Use $F_{net}$ instead of $F_net$
+      - Use $10^{-3}$ instead of $10^-3$
+      - Use $\theta^{\circ}$ for degrees, not $\theta^\circ$ or $\theta\circ$
+
+      ALWAYS USE PROPER LATEX COMMANDS FOR FUNCTIONS:
+      - Use $\cos(\theta)$ instead of $cos(\theta)$
+      - Use $\sin(\theta)$ instead of $sin(\theta)$
+      - Use $\tan(\theta)$ instead of $tan(\theta)$
+      - Use $\log(x)$ instead of $log(x)$
+
+      ALWAYS USE PROPER LATEX COMMANDS FOR GREEK LETTERS:
+      - Use $\theta$ instead of $theta$
+      - Use $\alpha$ instead of $alpha$
+      - Use $\omega$ instead of $omega$
+
+      EXAMPLES OF CORRECT FORMATTING:
+      - "The velocity is $v = 5$ m/s"
+      - "The initial velocity is $v_{0} = 10$ m/s"
+      - "The angle is $\theta = 30^{\circ}$"
+      - "The acceleration is $a = 9.8$ m/s$^{2}$"
+      - "The formula $F = ma$"
+      - "The equation $E = mc^{2}$"
+      - "The horizontal component is $v_{x} = v_{0}\cos(\theta)$"
+      - "The vertical component is $v_{y} = v_{0}\sin(\theta)$"
+      - For complex equations, use double dollar signs: "$$E = \frac{V}{r} \ln\left(\frac{d}{r}\right)$$"
 
       Always wrap mathematical symbols, variables, and equations in dollar signs ($...$) for inline formulas or double dollar signs ($$...$$) for displayed equations.
 
@@ -130,7 +153,7 @@ export async function POST(req: Request) {
 
     try {
       // System prompt for the quiz generation
-      const systemPrompt = "You are an expert IB science teacher specializing in Chemistry, Physics, and Biology with 20+ years of experience teaching IB DP students. Your expertise includes creating educational content that follows IB curriculum standards and assessment criteria. Your explanations are known for being exceptionally clear, methodical, and step-by-step, helping students truly understand complex scientific concepts rather than just memorizing facts. You excel at breaking down difficult topics into logical steps and explaining WHY scientific principles work the way they do, not just WHAT they are. You always use proper mathematical notation and ensure your explanations connect to the broader scientific context. Your goal is to create quiz questions that not only test knowledge but also serve as effective learning tools through their detailed, structured explanations.\n\nWhen provided with additional context about a topic, use this information to create more accurate, detailed, and curriculum-aligned questions. Incorporate specific facts, concepts, and terminology from the provided context, but adapt them to create appropriate questions rather than copying directly. Ensure all information used is scientifically accurate and relevant to the IB curriculum.";
+      const systemPrompt = "You are an expert IB science teacher specializing in Chemistry, Physics, and Biology with 20+ years of experience teaching IB DP students. Your expertise includes creating educational content that follows IB curriculum standards and assessment criteria. Your explanations are known for being exceptionally clear, methodical, and step-by-step, helping students truly understand complex scientific concepts rather than just memorizing facts. You excel at breaking down difficult topics into logical steps and explaining WHY scientific principles work the way they do, not just WHAT they are. You always use proper mathematical notation and ensure your explanations connect to the broader scientific context. Your goal is to create quiz questions that not only test knowledge but also serve as effective learning tools through their detailed, structured explanations.\n\nCRITICAL FORMATTING REQUIREMENTS:\n1. Always use proper LaTeX notation for ALL mathematical formulas, equations, and expressions.\n2. ALWAYS use braces for subscripts and superscripts: $v_{0}$ not $v_0$, $a_{x}$ not $a_x$, $10^{-3}$ not $10^-3$.\n3. ALWAYS use proper LaTeX commands for functions: $\\cos(\\theta)$ not $cos(\\theta)$, $\\sin(\\theta)$ not $sin(\\theta)$.\n4. ALWAYS use proper LaTeX commands for Greek letters: $\\theta$ not $theta$, $\\alpha$ not $alpha$.\n5. For degrees, use $30^{\\circ}$ not $30\\circ$ or $30^\\circ$.\n6. Format explanations in a clear, step-by-step manner with proper headings and structure.\n\nWhen provided with additional context about a topic, use this information to create more accurate, detailed, and curriculum-aligned questions. Incorporate specific facts, concepts, and terminology from the provided context, but adapt them to create appropriate questions rather than copying directly. Ensure all information used is scientifically accurate and relevant to the IB curriculum.";
 
       // Get the LLM provider
       console.log("Getting LLM provider...");
