@@ -236,8 +236,13 @@ export interface SavedQuizState {
 
 type QuizProps = {
   questions: Question[];
-  clearQuiz: () => void;
+  clearQuiz: () => void; // This could be used to abandon the quiz
   title: string;
+  onQuizComplete?: (
+    userAnswers: Record<string, string | null>,
+    scores: Record<string, number>, // For MCQs, and potentially auto-graded others
+    longAnswerGrades: Record<string, { score: number | null; feedback: string | null }>
+  ) => void; // Callback for when the quiz is submitted for review by the parent
 };
 
 const MultipleChoiceQuestionCard: React.FC<{
@@ -899,7 +904,7 @@ export default function ScienceQuiz({
 
   return (
     <div className="min-h-screen bg-background text-foreground pt-16">
-      <main className="container mx-auto px-4 py-12 max-w-4xl">
+      <main className="container mx-auto px-4 py-12 max-w-5xl">
         <h1 className="text-3xl font-bold mb-8 text-center text-foreground">
           {title}
         </h1>
@@ -988,21 +993,17 @@ export default function ScienceQuiz({
                   <div className="space-y-6">
                     <ScienceQuizReview
                       questions={questions}
-                      userAnswers={answers}
+                      userAnswers={answers} // Correct state variable name
+                      onRestartQuiz={handleReset}
+                      title={`${title} - Review`}
                     />
-                    <div className="flex justify-center space-x-4 pt-4">
-                      <Button
-                        onClick={() => setShowReview(false)}
-                        variant="outline"
-                      >
-                        Back to Results
-                      </Button>
-                      <Button
-                        onClick={clearQuiz}
-                        className="bg-primary hover:bg-primary/90"
-                      >
-                        <BookOpen className="mr-2 h-4 w-4" /> Create New Quiz
-                      </Button>
+                     <div className="flex justify-center space-x-4 pt-4">
+                        <Button onClick={handleReset} variant="outline">
+                            <RefreshCw className="mr-2 h-4 w-4" /> Try Quiz Again
+                        </Button>
+                        <Button onClick={clearQuiz}>
+                            <BookOpen className="mr-2 h-4 w-4" /> New Quiz (Setup)
+                        </Button>
                     </div>
                   </div>
                 ) : (

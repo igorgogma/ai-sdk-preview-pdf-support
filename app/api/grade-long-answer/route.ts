@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { longAnswerQuestionSchema } from "@/lib/schemas";
+// import { longAnswerQuestionSchema } from "@/lib/schemas"; // Removed as it's no longer available
 import { getLLMProvider, LLMProviderResponse } from "@/lib/llm-providers";
+
+// Define a local schema for questionDetails as longAnswerQuestionSchema is removed
+const localQuestionDetailsSchema = z.object({
+  question: z.string(),
+  gradingCriteria: z.string().optional(),
+});
 
 // Define the schema for the grading submission
 const gradeSubmissionSchema = z.object({
   questionId: z.string().optional(), // ID of the question being answered
-  questionDetails: longAnswerQuestionSchema.optional(), // Or full question object
+  questionDetails: localQuestionDetailsSchema.optional(), // Or full question object
   userAnswer: z.string().min(1, "User answer cannot be empty."),
 });
 
