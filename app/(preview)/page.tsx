@@ -156,7 +156,7 @@ export default function ChatWithFiles() {
             <CardTitle className="text-2xl font-bold">
               PDF Quiz Generator
             </CardTitle>
-            <CardDescription className="text-base">
+            <CardDescription className="text-base"> 
               Upload a PDF to generate an interactive quiz based on its content
               using the <Link href="https://sdk.vercel.ai">AI SDK</Link> and{" "}
               <Link href="https://sdk.vercel.ai/providers/ai-sdk-providers/google-generative-ai">

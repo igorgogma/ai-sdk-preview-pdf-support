@@ -422,33 +422,89 @@ export class ReplicateProvider implements LLMProvider {
   }
 }
 
+// XenAI Provider implementation
+export class XenAIProvider implements LLMProvider {
+  async generateContent(prompt: string, systemPrompt: string, options: any = {}): Promise<LLMProviderResponse> {
+    console.log("Using XenAI API");
+
+    const response = await fetch("https://chat.xenai.tech/api/v1/chat/completions", { // Corrected API endpoint
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer sk-5ad27f6acd924307b264d1e74673dbc9`, // API Key
+      },
+      body: JSON.stringify({
+        model: options.model || "gemini-2.5-flash-preview-05-20", // Model
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        response_format: { type: "json_object" } // Assuming XenAI supports this, adjust if not
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("XenAI API error:", errorData);
+      throw new Error(`XenAI API error: ${errorData.error?.message || "Unknown error"}`);
+    }
+
+    const data = await response.json();
+
+    // Format the response to match our common interface
+    return {
+      text: data.choices[0]?.message?.content || "",
+      json: () => {
+        try {
+          return JSON.parse(data.choices[0]?.message?.content || "{}");
+        } catch (error) {
+          console.error("Error parsing JSON from XenAI response:", error);
+          return {};
+        }
+      },
+      id: data.id // Include the generation ID from XenAI if available
+    };
+  }
+
+  // streamContent and checkGeneration can be added if XenAI supports them
+  // For now, leave them undefined or implement basic versions if necessary.
+}
+
 // Factory function to get the appropriate provider based on environment settings
 export async function getLLMProvider(): Promise<LLMProvider> {
-  // Force use Replicate for now
-  const provider = "replicate";
+  // Allow provider selection via environment variable or default to XenAI
+  const provider = process.env.LLM_PROVIDER || "xenai";
 
   // Log the provider being used
-  console.log(`Using LLM provider (forced): ${provider}`);
+  console.log(`Using LLM provider: ${provider}`);
 
   // Create and return the appropriate provider
   if (provider === "replicate") {
     if (!process.env.REPLICATE_API_KEY) {
       console.warn("Replicate API key not found, falling back to OpenRouter");
-      return new OpenRouterProvider();
+      return new OpenRouterProvider(); // Fallback if XenAI is also unavailable
     }
     return new ReplicateProvider();
   } else if (provider === "openrouter") {
     if (!process.env.OPENROUTER_API_KEY) {
       console.warn("OpenRouter API key not found, check your environment variables");
-      throw new Error("OpenRouter API key not found");
+      // Fallback to XenAI if OpenRouter key is missing
+      console.warn("Falling back to XenAI due to missing OpenRouter API key.");
+      return new XenAIProvider();
     }
     return new OpenRouterProvider();
+  } else if (provider === "xenai") {
+    // No specific API key check here as it's hardcoded in the XenAIProvider for this example
+    // In a real application, you'd use process.env.XENAI_API_KEY
+    return new XenAIProvider();
   } else {
-    console.warn(`Unknown provider "${provider}", falling back to Replicate`);
-    if (!process.env.REPLICATE_API_KEY) {
-      console.warn("Replicate API key not found, falling back to OpenRouter");
-      return new OpenRouterProvider();
-    }
-    return new ReplicateProvider();
+    console.warn(`Unknown provider "${provider}", falling back to XenAI`);
+    return new XenAIProvider();
   }
 }
