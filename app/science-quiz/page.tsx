@@ -227,6 +227,11 @@ export default function ScienceQuizGenerator() {
     transition: { duration: 0.3 },
   };
 
+  const handleQuizSubmitForReview = (answers: any[]) => {
+    setSubmittedAnswers(answers);
+    setShowReview(true);
+  };
+
   const handleGoToSetup = () => {
     setQuestions([]);
     setSubmittedAnswers([]);
