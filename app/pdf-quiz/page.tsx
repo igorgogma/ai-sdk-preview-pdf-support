@@ -287,9 +287,7 @@ export default function PDFQuizGenerator() {
             <CardTitle className="text-2xl font-bold">
               PDF Quiz Generator
             </CardTitle>
-            <CardDescription className="text-base">
-              Upload a PDF to generate an interactive quiz based on its content.
-            </CardDescription>
+            <CardDescription className="text-base"></CardDescription>
           </div>
         </CardHeader>
         <CardContent>

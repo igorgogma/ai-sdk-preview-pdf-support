@@ -264,7 +264,7 @@ export default function ScienceQuizReview({ questions, userAnswers }: ScienceQui
                         <div className="font-medium mb-1">Explanation:</div>
                         <ol className="list-decimal list-inside text-sm space-y-1">
                           {question.explanation.map((step: string, stepIndex: number) => (
-                            <li key={stepIndex}>{renderWithMath(step)}</li>
+                            <li key={stepIndex} className="mb-2">{renderWithMath(step)}</li>
                           ))}
                         </ol>
                       </div>
@@ -276,7 +276,7 @@ export default function ScienceQuizReview({ questions, userAnswers }: ScienceQui
                         <div className="font-medium mb-1">Reference Answer / Explanation:</div>
                         <ol className="list-decimal list-inside text-sm space-y-1">
                           {question.explanation.map((step: string, stepIndex: number) => (
-                            <li key={stepIndex}>{renderWithMath(step)}</li>
+                            <li key={stepIndex} className="mb-2">{renderWithMath(step)}</li>
                           ))}
                         </ol>
                       </div>
@@ -290,7 +290,7 @@ export default function ScienceQuizReview({ questions, userAnswers }: ScienceQui
                     <div className="font-medium mb-1">Explanation:</div>
                     <ol className="list-decimal list-inside text-sm space-y-1">
                       {question.explanation.map((step: string, stepIndex: number) => (
-                        <li key={stepIndex}>{renderWithMath(step)}</li>
+                        <li key={stepIndex} className="mb-2">{renderWithMath(step)}</li>
                       ))}
                     </ol>
                   </div>

@@ -230,7 +230,7 @@ export default function ChatWithFiles() {
           </CardFooter>
         )}
       </Card>
-      <motion.div
+      {/* <motion.div
         className="flex flex-row gap-4 items-center justify-between fixed bottom-6 text-xs "
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -252,7 +252,7 @@ export default function ChatWithFiles() {
           <VercelIcon size={14} />
           Deploy with Vercel
         </NextLink>
-      </motion.div>
+      </motion.div> */}
     </div>
   );
 }
