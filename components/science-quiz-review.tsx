@@ -1,6 +1,5 @@
-import { Check, X, RotateCcw } from "lucide-react"; // Added RotateCcw
-import { Button } from "@/components/ui/button"; // Added Button
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"; // Added CardFooter
+import { Check, X } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import MathFormula from "./math-formula";
@@ -158,154 +157,149 @@ const renderWithMath = (text: string) => {
 
 interface ScienceQuizReviewProps {
   questions: Question[];
-  userAnswers: Record<string, string | null>; // Can be null if not answered
-  onRestartQuiz: () => void;
-  title?: string;
-  // We might also want to pass scores or AI feedback for long answers if available
-  // For now, keeping it simple as per the immediate requirement.
+  userAnswers: Record<string, string>;
 }
 
-export default function ScienceQuizReview({ questions, userAnswers, onRestartQuiz, title = "Quiz Review" }: ScienceQuizReviewProps) {
+export default function ScienceQuizReview({ questions, userAnswers }: ScienceQuizReviewProps) {
   return (
-    <div className="container mx-auto px-4 py-12 max-w-3xl">
-      <Card className="w-full relative">
-        <GlowingEffect
-          spread={40}
-          glow={true}
-          disabled={false}
-          proximity={64}
-          inactiveZone={0.01}
-          borderWidth={3}
-        />
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-center">{title}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-[calc(100vh-250px)] pr-4"> {/* Adjusted height */}
-            <div className="space-y-8">
-              {questions.map((question, index) => (
-                <div key={question.id} className="pb-6 border-b last:border-b-0 last:pb-0">
-                  <div className="flex justify-between items-start mb-4">
-                    <h3 className="text-lg font-semibold">
-                      Question {index + 1}: {question.type === "multiple-choice"
-                        ? "Multiple Choice"
-                        : question.type === "definition"
-                          ? "Definition"
-                          : question.type === "problem-solving"
-                            ? "Problem Solving"
-                            : question.type === "long-answer"
-                              ? "Long Answer"
-                              : "Unknown Question Type"}
-                    </h3>
-                    {question.type === "multiple-choice" && userAnswers[question.id] !== null && (
-                      <div className={`px-2 py-1 rounded-full text-sm font-medium ${
-                        (question as MultipleChoiceQuestion).correctAnswer === userAnswers[question.id]
-                          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                          : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-                      }`}>
-                        {(question as MultipleChoiceQuestion).correctAnswer === userAnswers[question.id] ? "Correct" : "Incorrect"}
+    <Card className="w-full relative">
+      <GlowingEffect
+        spread={40}
+        glow={true}
+        disabled={false}
+        proximity={64}
+        inactiveZone={0.01}
+        borderWidth={3}
+      />
+      <CardHeader>
+        <CardTitle className="text-2xl font-bold">Quiz Review</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ScrollArea className="h-[60vh] pr-4">
+          <div className="space-y-8">
+            {questions.map((question, index) => (
+              <div key={question.id} className="pb-6 border-b last:border-b-0 last:pb-0">
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="text-lg font-semibold">
+                    Question {index + 1}: {question.type === "multiple-choice"
+                      ? "Multiple Choice"
+                      : question.type === "definition"
+                        ? "Definition"
+                        : question.type === "problem-solving"
+                          ? "Problem Solving"
+                          : question.type === "long-answer"
+                            ? "Long Answer"
+                            : "Unknown Question Type"}
+                  </h3>
+                  {question.type === "multiple-choice" && (
+                    <div className={`px-2 py-1 rounded-full text-sm font-medium ${
+                      (question as MultipleChoiceQuestion).correctAnswer === userAnswers[question.id]
+                        ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                        : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                    }`}>
+                      {(question as MultipleChoiceQuestion).correctAnswer === userAnswers[question.id] ? "Correct" : "Incorrect"}
+                    </div>
+                  )}
+                  {/* For long-answer, correctness is determined by AI, so no immediate correct/incorrect badge here */}
+                </div>
+
+                <div className="mb-4 text-base">
+                  {renderWithMath(question.question)}
+                </div>
+
+                {question.type === "multiple-choice" && (
+                  <div className="space-y-2 mb-4">
+                    {(question as MultipleChoiceQuestion).options.map((option: string, optionIndex: number) => {
+                      const optionLabel = String.fromCharCode(65 + optionIndex); // A, B, C, D...
+                      const isCorrect = optionLabel === (question as MultipleChoiceQuestion).correctAnswer;
+                      const isSelected = optionLabel === userAnswers[question.id];
+
+                      return (
+                        <div
+                          key={optionIndex}
+                          className={`flex items-center p-3 rounded-lg ${
+                            isCorrect
+                              ? "bg-green-100 dark:bg-green-900/30 border border-green-500"
+                              : isSelected
+                                ? "bg-red-100 dark:bg-red-900/30 border border-red-500"
+                                : "border border-border"
+                          }`}
+                        >
+                          <span className="font-medium mr-3">{optionLabel}</span>
+                          <div className="flex-grow math-option">
+                            {renderWithMath(option)}
+                          </div>
+                          {isCorrect && (
+                            <Check className="ml-2 text-green-600 dark:text-green-400" size={18} />
+                          )}
+                          {isSelected && !isCorrect && (
+                            <X className="ml-2 text-red-600 dark:text-red-400" size={18} />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {(question.type === "definition" || question.type === "problem-solving" || question.type === "long-answer") && (
+                  <div className="space-y-4 mb-4">
+                    <div className="p-3 rounded-lg border border-border">
+                      <div className="font-medium mb-1">Your Answer:</div>
+                      <div className="text-sm">
+                        {userAnswers[question.id] ? renderWithMath(userAnswers[question.id]) : <span className="italic text-muted-foreground">No answer provided</span>}
+                      </div>
+                    </div>
+
+                    {/* Only show Correct Answer for definition and problem-solving */}
+                    {(question.type === "definition" || question.type === "problem-solving") && (
+                      <div className="p-3 rounded-lg bg-green-100 dark:bg-green-900/30 border border-green-500">
+                        <div className="font-medium mb-1">Correct Answer:</div>
+                        <div className="text-sm">{renderWithMath((question as DefinitionQuestion | ProblemSolvingQuestion).correctAnswer)}</div>
                       </div>
                     )}
-                    {/* Add similar badges for other question types if direct comparison is possible and desired */}
-                  </div>
-
-                  <div className="mb-4 text-base">
-                    {renderWithMath(question.question)}
-                  </div>
-
-                  {question.type === "multiple-choice" && (
-                    <div className="space-y-2 mb-4">
-                      {(question as MultipleChoiceQuestion).options.map((option: string, optionIndex: number) => {
-                        const optionLabel = String.fromCharCode(65 + optionIndex); // A, B, C, D...
-                        const isCorrect = optionLabel === (question as MultipleChoiceQuestion).correctAnswer;
-                        const isSelected = optionLabel === userAnswers[question.id];
-
-                        return (
-                          <div
-                            key={optionIndex}
-                            className={`flex items-center p-3 rounded-lg ${
-                              isCorrect
-                                ? "bg-green-100 dark:bg-green-900/30 border border-green-500"
-                                : isSelected
-                                  ? "bg-red-100 dark:bg-red-900/30 border border-red-500"
-                                  : "border border-border"
-                            }`}
-                          >
-                            <span className="font-medium mr-3">{optionLabel}</span>
-                            <div className="flex-grow math-option">
-                              {renderWithMath(option)}
-                            </div>
-                            {isCorrect && (
-                              <Check className="ml-2 text-green-600 dark:text-green-400" size={18} />
-                            )}
-                            {isSelected && !isCorrect && (
-                              <X className="ml-2 text-red-600 dark:text-red-400" size={18} />
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {(question.type === "definition" || question.type === "problem-solving" || question.type === "long-answer") && (
-                    <div className="space-y-4 mb-4">
-                      <div className="p-3 rounded-lg border border-border">
-                        <div className="font-medium mb-1">Your Answer:</div>
-                        <div className="text-sm">
-                          {userAnswers[question.id] ? renderWithMath(userAnswers[question.id]!) : <span className="italic text-muted-foreground">No answer provided</span>}
-                        </div>
+                    
+                    {/* Explanation for Definition and Problem Solving */}
+                    {(question.type === "definition" || question.type === "problem-solving") && Array.isArray(question.explanation) && question.explanation.length > 0 && (
+                      <div className="p-3 rounded-lg bg-muted mt-4">
+                        <div className="font-medium mb-1">Explanation:</div>
+                        <ol className="list-decimal list-inside text-sm space-y-1">
+                          {question.explanation.map((step: string, stepIndex: number) => (
+                            <li key={stepIndex}>{renderWithMath(step)}</li>
+                          ))}
+                        </ol>
                       </div>
+                    )}
 
-                      {(question.type === "definition" || question.type === "problem-solving") && (
-                        <div className="p-3 rounded-lg bg-green-100 dark:bg-green-900/30 border border-green-500">
-                          <div className="font-medium mb-1">Correct Answer:</div>
-                          <div className="text-sm">{renderWithMath((question as DefinitionQuestion | ProblemSolvingQuestion).correctAnswer)}</div>
-                        </div>
-                      )}
-                      
-                      {/* Explanation for Definition and Problem Solving */}
-                      {(question.type === "definition" || question.type === "problem-solving") && typeof question.explanation === 'string' && question.explanation.length > 0 && (
-                        <div className="p-3 rounded-lg bg-muted mt-2">
-                          <h4 className="font-semibold mb-1">Explanation:</h4>
-                          <div className="text-sm explanation-content">
-                            {renderWithMath(question.explanation)}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* For LongAnswerQuestion, the explanation serves as a reference/model answer */}
-                      {question.type === "long-answer" && typeof question.explanation === 'string' && question.explanation.length > 0 && (
-                         <div className="p-3 rounded-lg bg-muted mt-2">
-                          <h4 className="font-semibold mb-1">Reference Answer / Explanation:</h4>
-                           <div className="text-sm explanation-content">
-                            {renderWithMath(question.explanation)}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  
-                  {/* General explanation for MCQs */}
-                  {question.type === "multiple-choice" && typeof question.explanation === 'string' && question.explanation.length > 0 && (
-                     <div className="p-3 rounded-lg bg-muted mt-2">
-                      <h4 className="font-semibold mb-1">Explanation:</h4>
-                       <div className="text-sm explanation-content">
-                        {renderWithMath(question.explanation)}
+                    {/* For LongAnswerQuestion, the explanation serves as a reference/model answer */}
+                    {question.type === "long-answer" && Array.isArray(question.explanation) && question.explanation.length > 0 && (
+                       <div className="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/30 border border-blue-500 mt-4">
+                        <div className="font-medium mb-1">Reference Answer / Explanation:</div>
+                        <ol className="list-decimal list-inside text-sm space-y-1">
+                          {question.explanation.map((step: string, stepIndex: number) => (
+                            <li key={stepIndex}>{renderWithMath(step)}</li>
+                          ))}
+                        </ol>
                       </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-        </CardContent>
-        <CardFooter className="flex justify-center py-6">
-          <Button onClick={onRestartQuiz} variant="outline">
-            <RotateCcw className="mr-2 h-4 w-4" />
-            Back to Setup
-          </Button>
-        </CardFooter>
-      </Card>
-    </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* General explanation for MCQs */}
+                {question.type === "multiple-choice" && Array.isArray(question.explanation) && question.explanation.length > 0 && (
+                   <div className="p-3 rounded-lg bg-muted mt-4">
+                    <div className="font-medium mb-1">Explanation:</div>
+                    <ol className="list-decimal list-inside text-sm space-y-1">
+                      {question.explanation.map((step: string, stepIndex: number) => (
+                        <li key={stepIndex}>{renderWithMath(step)}</li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+      </CardContent>
+    </Card>
   );
 }

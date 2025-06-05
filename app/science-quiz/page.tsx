@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Loader2, BookOpen, ArrowLeft } from "lucide-react";
@@ -30,7 +29,6 @@ import {
 } from "@/components/ui/select";
 import { generateScienceQuiz, checkGenerationProgress } from "./actions";
 import Quiz from "@/components/science-quiz";
-import ScienceQuizReview from "@/components/science-quiz-review"; // Added import
 import LLMProviderToggle from "@/components/llm-provider-toggle";
 
 // Define the question types
@@ -51,8 +49,6 @@ export default function ScienceQuizGenerator() {
   const [generationId, setGenerationId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>("");
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const [showReview, setShowReview] = useState(false);
-  const [submittedAnswers, setSubmittedAnswers] = useState<any[]>([]); // To store answers for review
 
   const handleQuestionTypeToggle = (type: QuestionType) => {
     if (questionTypes.includes(type)) {
@@ -219,89 +215,38 @@ export default function ScienceQuizGenerator() {
     setError(null);
   }, []);
 
-  // Animation properties
-  const pageTransitionAnimations = {
-    initial: { opacity: 0, x: 20 },
-    animate: { opacity: 1, x: 0 },
-    exit: { opacity: 0, x: -20 },
-    transition: { duration: 0.3 },
-  };
-
-  const handleQuizSubmitForReview = (answers: any[]) => {
-    setSubmittedAnswers(answers);
-    setShowReview(true);
-  };
-
-  const handleGoToSetup = () => {
+  const clearQuiz = () => {
     setQuestions([]);
-    setSubmittedAnswers([]);
-    setShowReview(false);
-    // Optionally reset other form fields
-      // setStudyTopic("");
-      // setSubject("physics");
-      // setQuestionCount(5);
-      // setDifficulty("medium");
-    };
-  
-    const handleQuizSubmitForReview = (
-      userAnswers: Record<string, string | null>,
-      // scores: Record<string, number>, // We might use scores later for more detailed review
-      // longAnswerGrades: Record<string, { score: number | null; feedback: string | null }>
-    ) => {
-      setSubmittedAnswers(userAnswers as any[]); // Cast for now, or adjust state type
-      setShowReview(true);
-    };
-  
-    if (error) {
-      return <ErrorFallback error={error} reset={resetError} />;
-    }
-  
+  };
+
+  if (error) {
+    return <ErrorFallback error={error} reset={resetError} />;
+  }
+
+  if (questions.length > 0) {
     return (
-      <AnimatePresence mode="wait">
-        {showReview ? (
-          <motion.div
-            key="review"
-            {...pageTransitionAnimations}
-            className="w-full min-h-screen flex flex-col items-center justify-center p-4"
-          >
-            <ScienceQuizReview
-              questions={questions}
-              userAnswers={submittedAnswers as Record<string, string | null>} // Pass the stored answers
-              onRestartQuiz={handleGoToSetup}
-              title={`${studyTopic} Review`}
-            />
-          </motion.div>
-        ) : questions.length > 0 ? (
-          <motion.div
-            key="quiz"
-            {...pageTransitionAnimations}
-            className="w-full"
-          >
-            <Quiz
-              questions={questions}
-              onQuizComplete={handleQuizSubmitForReview}
-              clearQuiz={handleGoToSetup}
-              title={`${studyTopic} Quiz`}
-            />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="setup"
-            {...pageTransitionAnimations}
-            className="min-h-screen flex items-center justify-center w-full"
-          >
-            <div className="fixed top-20 left-4 z-20 mt-4">
-              <Button variant="outline" size="sm" asChild className="bg-black/60 backdrop-blur-sm border-white/20">
-                <Link href="/">
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to Home
-                </Link>
-              </Button>
-            </div>
-            <main className="container mx-auto px-4 py-24 max-w-7xl">
-              <Card className="w-full relative">
-                <GlowingEffect
-                  spread={40}
+      <Quiz
+        questions={questions}
+        clearQuiz={clearQuiz}
+        title={`${studyTopic} Quiz`}
+      />
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="fixed top-20 left-4 z-20 mt-4">
+        <Button variant="outline" size="sm" asChild className="bg-black/60 backdrop-blur-sm border-white/20">
+          <Link href="/">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Home
+          </Link>
+        </Button>
+      </div>
+      <main className="container mx-auto px-4 py-24 max-w-4xl">
+        <Card className="w-full relative">
+          <GlowingEffect
+            spread={40}
             glow={true}
             disabled={false}
             proximity={64}
@@ -464,8 +409,6 @@ export default function ScienceQuizGenerator() {
           </CardFooter>
         </Card>
       </main>
-      </motion.div>
-      )}
-    </AnimatePresence>
+    </div>
   );
 }
