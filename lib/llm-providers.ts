@@ -478,33 +478,36 @@ export class XenAIProvider implements LLMProvider {
 
 // Factory function to get the appropriate provider based on environment settings
 export async function getLLMProvider(): Promise<LLMProvider> {
-  // Allow provider selection via environment variable or default to XenAI
-  const provider = process.env.LLM_PROVIDER || "xenai";
+  const rawProviderEnv = process.env.LLM_PROVIDER?.toLowerCase();
+  let effectiveProvider: string;
 
-  // Log the provider being used
-  console.log(`Using LLM provider: ${provider}`);
-
-  // Create and return the appropriate provider
-  if (provider === "replicate") {
-    if (!process.env.REPLICATE_API_KEY) {
-      console.warn("Replicate API key not found, falling back to OpenRouter");
-      return new OpenRouterProvider(); // Fallback if XenAI is also unavailable
+  if (rawProviderEnv === "replicate" || !rawProviderEnv) {
+    effectiveProvider = "xenai";
+    if (rawProviderEnv === "replicate") {
+      console.log("LLM_PROVIDER environment variable was 'replicate', overriding to 'xenai' as per current policy.");
+    } else if (!rawProviderEnv) {
+      console.log("LLM_PROVIDER environment variable is not set, defaulting to 'xenai'.");
     }
-    return new ReplicateProvider();
-  } else if (provider === "openrouter") {
+  } else if (rawProviderEnv === "openrouter" || rawProviderEnv === "xenai") {
+    effectiveProvider = rawProviderEnv;
+  } else {
+    // Any other unrecognized value in LLM_PROVIDER
+    console.warn(`Unsupported LLM_PROVIDER environment variable value: '${process.env.LLM_PROVIDER}'. Defaulting to XenAI.`);
+    effectiveProvider = "xenai";
+  }
+
+  console.log(`Effective LLM provider set to: ${effectiveProvider}`);
+
+  if (effectiveProvider === "openrouter") {
     if (!process.env.OPENROUTER_API_KEY) {
-      console.warn("OpenRouter API key not found, check your environment variables");
-      // Fallback to XenAI if OpenRouter key is missing
-      console.warn("Falling back to XenAI due to missing OpenRouter API key.");
+      console.warn("OpenRouter API key (OPENROUTER_API_KEY) not found in environment variables. Falling back to XenAI.");
+      console.log("Instantiating XenAI Provider due to missing OpenRouter key.");
       return new XenAIProvider();
     }
+    console.log("Instantiating OpenRouter Provider.");
     return new OpenRouterProvider();
-  } else if (provider === "xenai") {
-    // No specific API key check here as it's hardcoded in the XenAIProvider for this example
-    // In a real application, you'd use process.env.XENAI_API_KEY
-    return new XenAIProvider();
-  } else {
-    console.warn(`Unknown provider "${provider}", falling back to XenAI`);
+  } else { // This covers "xenai" and any fallbacks to xenai from other conditions
+    console.log("Instantiating XenAI Provider.");
     return new XenAIProvider();
   }
 }
