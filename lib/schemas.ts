@@ -27,7 +27,7 @@ export const multipleChoiceQuestionSchema = z.object({
   question: z.string(),
   options: z.array(z.string()).length(4),
   correctAnswer: z.string(),
-  explanation: z.string(),
+  explanation: z.array(z.string()),
 });
 
 export const definitionQuestionSchema = z.object({
@@ -35,7 +35,7 @@ export const definitionQuestionSchema = z.object({
   type: z.literal("definition"),
   question: z.string(),
   correctAnswer: z.string(),
-  explanation: z.string(),
+  explanation: z.array(z.string()),
 });
 
 export const problemSolvingQuestionSchema = z.object({
@@ -43,14 +43,25 @@ export const problemSolvingQuestionSchema = z.object({
   type: z.literal("problem-solving"),
   question: z.string(),
   correctAnswer: z.string(),
-  steps: z.array(z.string()).optional(),
-  explanation: z.string(),
+  explanation: z.array(z.string()),
+});
+
+export const longAnswerQuestionSchema = z.object({
+  id: z.string().optional(),
+  type: z.literal("long-answer"),
+  question: z.string(),
+  // Placeholder for the correct answer or grading criteria, if needed for the grading prompt
+  gradingCriteria: z.string().optional(),
+  aiGrade: z.union([z.string(), z.number()]).optional(),
+  aiFeedback: z.string().optional(),
+  explanation: z.array(z.string()).optional(), // Changed to array of strings, kept optional
 });
 
 export const enhancedQuestionSchema = z.discriminatedUnion("type", [
   multipleChoiceQuestionSchema,
   definitionQuestionSchema,
   problemSolvingQuestionSchema,
+  longAnswerQuestionSchema, // Added new type
 ]);
 
 export type EnhancedQuestion = z.infer<typeof enhancedQuestionSchema>;
@@ -68,6 +79,6 @@ export const pdfQuizParamsSchema = z.object({
   ),
   count: z.number().min(3).max(40).default(5),
   questionTypes: z.array(
-    z.enum(["multiple-choice", "definition", "problem-solving"])
+    z.enum(["multiple-choice", "definition", "problem-solving", "long-answer"]) // Added new type
   ).min(1, "At least one question type is required"),
 });

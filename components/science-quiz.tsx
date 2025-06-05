@@ -10,6 +10,7 @@ import {
   X,
   RefreshCw,
   BookOpen,
+  Lightbulb,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
@@ -17,7 +18,7 @@ import ScienceQuizScore from "./science-quiz-score";
 import ScienceQuizReview from "./science-quiz-review";
 import MathFormula from "./math-formula";
 
-type QuestionType = "multiple-choice" | "definition" | "problem-solving";
+type QuestionType = "multiple-choice" | "definition" | "problem-solving" | "long-answer";
 
 // Helper function to render text with math formulas
 const renderWithMath = (text: string) => {
@@ -192,26 +193,46 @@ interface BaseQuestion {
   question: string;
   explanation: string;
   type: QuestionType;
+  hints?: string[];
 }
 
-interface MultipleChoiceQuestion extends BaseQuestion {
+export interface MultipleChoiceQuestion extends BaseQuestion {
   type: "multiple-choice";
   options: string[];
   correctAnswer: string;
 }
 
-interface DefinitionQuestion extends BaseQuestion {
+export interface DefinitionQuestion extends BaseQuestion {
   type: "definition";
   correctAnswer: string;
 }
 
-interface ProblemSolvingQuestion extends BaseQuestion {
+export interface ProblemSolvingQuestion extends BaseQuestion {
   type: "problem-solving";
   correctAnswer: string;
   steps?: string[];
 }
 
-type Question = MultipleChoiceQuestion | DefinitionQuestion | ProblemSolvingQuestion;
+export interface LongAnswerQuestion extends BaseQuestion {
+  type: "long-answer";
+  gradingCriteria?: string; // Optional: criteria for the LLM to use for grading
+  // aiGrade and aiFeedback will be handled by the grading API later
+  // Storing the grade directly on the question might be an alternative,
+  // but for now, we'll manage it in the parent ScienceQuiz component
+  // to align with the requirement of saving all progress data together.
+}
+
+export type Question = MultipleChoiceQuestion | DefinitionQuestion | ProblemSolvingQuestion | LongAnswerQuestion;
+
+// Structure for saving quiz progress
+export interface SavedQuizState {
+  questions: Question[];
+  userAnswers: { [key: string]: string | null };
+  hintsUsedPerQuestion: { [key: string]: number };
+  currentQuestionIndex: number;
+  longAnswerGrades: { [key: string]: { score: number | null; feedback: string | null } };
+  title: string; // Also save the quiz title
+}
 
 type QuizProps = {
   questions: Question[];
@@ -412,6 +433,130 @@ const ProblemSolvingQuestionCard: React.FC<{
   );
 };
 
+const LongAnswerQuestionCard: React.FC<{
+  question: LongAnswerQuestion;
+  userAnswer: string;
+  onAnswerChange: (answer: string) => void;
+  isSubmitted: boolean; // This relates to overall quiz submission
+  onGrade: (questionId: string, score: number | null, feedback: string | null) => void;
+  initialGrade?: { score: number | null; feedback: string | null };
+}> = ({ question, userAnswer, onAnswerChange, isSubmitted, onGrade, initialGrade }) => {
+  const [isLoadingApi, setIsLoadingApi] = useState(false);
+  const [apiScore, setApiScore] = useState<number | null>(initialGrade?.score ?? null);
+  const [apiFeedback, setApiFeedback] = useState<string | null>(null);
+  const [isGraded, setIsGraded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleGradeSubmit = async () => {
+    if (!userAnswer.trim()) {
+      setError("Please enter an answer before submitting for grading.");
+      return;
+    }
+    setError(null);
+    setIsLoadingApi(true);
+    try {
+      const response = await fetch("/api/grade-long-answer", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          questionDetails: {
+            question: question.question,
+            gradingCriteria: question.gradingCriteria,
+          },
+          userAnswer: userAnswer,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `API Error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      setApiScore(data.score);
+      setApiFeedback(data.feedback);
+      setIsGraded(true);
+      onGrade(question.id, data.score, data.feedback); // Call onGrade callback
+    } catch (err: any) {
+      console.error("Failed to grade answer:", err);
+      setError(err.message || "Failed to grade answer. Please try again.");
+      // Optionally keep isGraded false so they can retry, or handle retries differently
+    } finally {
+      setIsLoadingApi(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="text-lg font-semibold leading-tight">
+        {renderWithMath(question.question)}
+      </div>
+      {question.gradingCriteria && (
+        <div className="text-sm text-muted-foreground italic">
+          Grading Criteria: {renderWithMath(question.gradingCriteria)}
+        </div>
+      )}
+      <div className="space-y-4">
+        <Textarea
+          placeholder="Type your detailed answer here..."
+          value={userAnswer}
+          onChange={(e) => onAnswerChange(e.target.value)}
+          rows={8}
+          disabled={isSubmitted || isGraded || isLoadingApi}
+          className="w-full"
+        />
+      </div>
+
+      {!isGraded && !isSubmitted && (
+        <Button
+          onClick={handleGradeSubmit}
+          disabled={isLoadingApi || !userAnswer.trim()}
+          className="w-full sm:w-auto"
+        >
+          {isLoadingApi ? (
+            <>
+              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              Grading...
+            </>
+          ) : (
+            "Submit for AI Grading"
+          )}
+        </Button>
+      )}
+
+      {error && (
+        <div className="mt-4 p-3 bg-red-100 dark:bg-red-900/30 border border-red-500 rounded-lg text-red-700 dark:text-red-300">
+          <p>{error}</p>
+        </div>
+      )}
+
+      {isGraded && apiScore !== null && apiFeedback !== null && (
+        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/40 border border-blue-400 rounded-lg">
+          <h3 className="font-semibold mb-2 text-blue-700 dark:text-blue-300">AI Grading Result:</h3>
+          <p className="text-sm">
+            <strong>Score:</strong> {apiScore}/100
+          </p>
+          <p className="text-sm mt-1">
+            <strong>Feedback:</strong> {renderWithMath(apiFeedback)}
+          </p>
+        </div>
+      )}
+
+      {/* Display general explanation if quiz is submitted (overall) and question has one */}
+      {isSubmitted && question.explanation && (
+        <div className="mt-6 p-4 bg-muted rounded-lg">
+          <h3 className="font-semibold mb-2">Explanation / Reference Answer:</h3>
+          <div className="space-y-4 explanation-content">
+            {renderWithMath(question.explanation)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function ScienceQuiz({
   questions,
   clearQuiz,
@@ -423,17 +568,93 @@ export default function ScienceQuiz({
   const [score, setScore] = useState<number | null>(null);
   const [progress, setProgress] = useState(0);
   const [showReview, setShowReview] = useState(false);
-  const [textScores, setTextScores] = useState<Record<string, number>>({});
+  const [textScores, setTextScores] = useState<Record<string, {score: number, isCorrect: boolean, feedback: string}>>({});
   const [totalScore, setTotalScore] = useState<number | null>(null);
+  const [hintsUsedPerQuestion, setHintsUsedPerQuestion] = useState<Record<string, number>>({});
+  const [revealedHints, setRevealedHints] = useState<Record<string, string[]>>({});
+  const [longAnswerGrades, setLongAnswerGrades] = useState<{ [key: string]: { score: number | null; feedback: string | null } }>({});
+
+  const LOCAL_STORAGE_KEY = "currentQuizProgress";
 
   const currentQuestion = questions[currentQuestionIndex];
+
+  // Effect to save progress to localStorage
+  useEffect(() => {
+    if (questions && questions.length > 0 && currentQuestion && !isSubmitted) { // Only save if there are questions and quiz is not submitted
+      const quizStateToSave: SavedQuizState = {
+        questions,
+        userAnswers: answers, // Assuming 'answers' is the state for user's answers
+        hintsUsedPerQuestion,
+        currentQuestionIndex,
+        longAnswerGrades,
+        title,
+      };
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(quizStateToSave));
+    }
+  }, [currentQuestionIndex, answers, hintsUsedPerQuestion, longAnswerGrades, questions, title, isSubmitted, currentQuestion]);
 
   // Update progress based on current question index
   useEffect(() => {
     // Calculate progress based on current question index
     const calculatedProgress = ((currentQuestionIndex + 1) / questions.length) * 100;
     setProgress(calculatedProgress);
-  }, [currentQuestionIndex, questions.length]);
+
+    // Initialize hints used for the current question if not already done
+    if (currentQuestion && !hintsUsedPerQuestion[currentQuestion.id]) {
+      setHintsUsedPerQuestion(prev => ({ ...prev, [currentQuestion.id]: 0 }));
+    }
+    if (currentQuestion && !revealedHints[currentQuestion.id]) {
+      setRevealedHints(prev => ({ ...prev, [currentQuestion.id]: [] }));
+    }
+    // Reset long answer grades when questions change (e.g. new quiz)
+    // This assumes this useEffect is the primary one reacting to 'questions' prop change for initialization.
+    if (questions && questions.length > 0) {
+        setLongAnswerGrades({});
+    }
+  }, [currentQuestionIndex, questions, currentQuestion, hintsUsedPerQuestion, revealedHints]);
+
+  // Load progress from localStorage on component mount
+  useEffect(() => {
+    const savedProgressString = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (savedProgressString) {
+      try {
+        const savedState: SavedQuizState = JSON.parse(savedProgressString);
+        
+        // Ensure savedState and its properties are valid before setting state
+        if (savedState) {
+          // Not setting questions or title as they are props and direct setters are not available.
+          // The loaded questions and title from savedState will be ignored if they differ from current props.
+          // This means progress is loaded for the quiz defined by the current props.
+
+          const transformedUserAnswers: Record<string, string> = {};
+          if (savedState.userAnswers) {
+            for (const key in savedState.userAnswers) {
+              if (Object.prototype.hasOwnProperty.call(savedState.userAnswers, key)) {
+                transformedUserAnswers[key] = savedState.userAnswers[key] || ""; // Convert null to empty string
+              }
+            }
+          }
+          setAnswers(transformedUserAnswers);
+
+          setHintsUsedPerQuestion(savedState.hintsUsedPerQuestion || {});
+          setCurrentQuestionIndex(typeof savedState.currentQuestionIndex === 'number' ? savedState.currentQuestionIndex : 0);
+          setLongAnswerGrades(savedState.longAnswerGrades || {});
+        } else {
+          // console.warn("Saved quiz progress was found but seems invalid or incomplete.");
+        }
+      } catch (error) {
+        console.error("Failed to parse saved quiz progress:", error);
+        // localStorage.removeItem(LOCAL_STORAGE_KEY); // Optionally clear corrupted data
+      }
+    }
+  }, []); // Empty dependency array ensures this runs only on mount. Add setInitialQuestions, setAnswers etc. to deps if they are not stable.
+
+  const handleLongAnswerGraded = (questionId: string, score: number | null, feedback: string | null) => {
+    setLongAnswerGrades(prev => ({
+      ...prev,
+      [questionId]: { score, feedback }
+    }));
+  };
 
   const handleSelectAnswer = (answer: string) => {
     if (!isSubmitted) {
@@ -464,6 +685,25 @@ export default function ScienceQuiz({
   const handlePreviousQuestion = () => {
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex(currentQuestionIndex - 1);
+    }
+  };
+
+  const handleGetHint = () => {
+    if (!currentQuestion || !currentQuestion.hints || isSubmitted) return;
+
+    const questionId = currentQuestion.id;
+    const currentHintCount = hintsUsedPerQuestion[questionId] || 0;
+
+    if (currentHintCount < currentQuestion.hints.length && currentHintCount < 5) {
+      const nextHint = currentQuestion.hints[currentHintCount];
+      setRevealedHints(prev => ({
+        ...prev,
+        [questionId]: [...(prev[questionId] || []), nextHint],
+      }));
+      setHintsUsedPerQuestion(prev => ({
+        ...prev,
+        [questionId]: currentHintCount + 1,
+      }));
     }
   };
 
@@ -586,6 +826,7 @@ export default function ScienceQuiz({
       : null;
 
     setTotalScore(overallScore);
+    localStorage.removeItem("currentQuizProgress"); // Clear saved progress on submission
   };
 
   const handleReset = () => {
@@ -632,8 +873,27 @@ export default function ScienceQuiz({
             score={textScoreData}
           />
         );
+      case "long-answer":
+        // Ensure currentQuestion is treated as LongAnswerQuestion for this case
+        // The 'as LongAnswerQuestion' cast might not be strictly necessary if TS infers correctly from currentQuestion.type
+        if (currentQuestion.type === "long-answer") {
+          return (
+            <LongAnswerQuestionCard
+              question={currentQuestion} // currentQuestion is already narrowed by the type check
+              userAnswer={userAnswer} // Defined at the start of renderQuestionCard
+              onAnswerChange={handleTextAnswer}
+              isSubmitted={isSubmitted}
+              onGrade={handleLongAnswerGraded}
+              initialGrade={longAnswerGrades[currentQuestion.id]}
+            />
+          );
+        }
+        // Fallthrough or specific error for type mismatch
+        return <div>Error: Question type mismatch for long-answer.</div>;
       default:
-        return <div>Unknown question type</div>;
+        // Exhaustive check to ensure all question types are handled
+        const _exhaustiveCheck: never = currentQuestion;
+        return <div>Unsupported question type: {JSON.stringify(_exhaustiveCheck)}</div>;
     }
   };
 
@@ -689,16 +949,38 @@ export default function ScienceQuiz({
                           >
                             <ChevronLeft className="mr-2 h-4 w-4" /> Previous
                           </Button>
-
-                          <Button onClick={handleNextQuestion}>
-                            {currentQuestionIndex === questions.length - 1
-                              ? "Finish Quiz"
-                              : "Next"}
-                            {currentQuestionIndex < questions.length - 1 && (
-                              <ChevronRight className="ml-2 h-4 w-4" />
+                          <div>
+                            {currentQuestion.hints && currentQuestion.hints.length > 0 && !isSubmitted && (
+                              <Button
+                                onClick={handleGetHint}
+                                disabled={(hintsUsedPerQuestion[currentQuestion.id] || 0) >= Math.min(currentQuestion.hints.length, 5)}
+                                variant="outline"
+                                className="mr-2"
+                              >
+                                <Lightbulb className="mr-2 h-4 w-4" />
+                                Get Hint ({Math.min(currentQuestion.hints.length, 5) - (hintsUsedPerQuestion[currentQuestion.id] || 0)} left)
+                              </Button>
                             )}
-                          </Button>
+                            <Button onClick={handleNextQuestion}>
+                              {currentQuestionIndex === questions.length - 1
+                                ? "Finish Quiz"
+                                : "Next"}
+                              {currentQuestionIndex < questions.length - 1 && (
+                                <ChevronRight className="ml-2 h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
                         </div>
+                        {revealedHints[currentQuestion.id] && revealedHints[currentQuestion.id].length > 0 && !isSubmitted && (
+                          <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                            <h4 className="font-semibold mb-2 text-blue-700 dark:text-blue-300">Hints:</h4>
+                            <ul className="list-disc list-inside space-y-1 text-sm text-blue-600 dark:text-blue-400">
+                              {revealedHints[currentQuestion.id].map((hint, index) => (
+                                <li key={index}>{renderWithMath(hint)}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   </div>

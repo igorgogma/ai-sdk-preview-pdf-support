@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import MathFormula from "./math-formula";
+import type { Question, LongAnswerQuestion, MultipleChoiceQuestion, DefinitionQuestion, ProblemSolvingQuestion } from "./science-quiz"; // Import necessary types
 
 // Helper function to render text with math formulas
 const renderWithMath = (text: string) => {
@@ -154,34 +155,6 @@ const renderWithMath = (text: string) => {
   }
 };
 
-type QuestionType = "multiple-choice" | "definition" | "problem-solving";
-
-interface BaseQuestion {
-  id: string;
-  question: string;
-  explanation: string;
-  type: QuestionType;
-}
-
-interface MultipleChoiceQuestion extends BaseQuestion {
-  type: "multiple-choice";
-  options: string[];
-  correctAnswer: string;
-}
-
-interface DefinitionQuestion extends BaseQuestion {
-  type: "definition";
-  correctAnswer: string;
-}
-
-interface ProblemSolvingQuestion extends BaseQuestion {
-  type: "problem-solving";
-  correctAnswer: string;
-  steps?: string[];
-}
-
-type Question = MultipleChoiceQuestion | DefinitionQuestion | ProblemSolvingQuestion;
-
 interface ScienceQuizReviewProps {
   questions: Question[];
   userAnswers: Record<string, string>;
@@ -212,17 +185,22 @@ export default function ScienceQuizReview({ questions, userAnswers }: ScienceQui
                       ? "Multiple Choice"
                       : question.type === "definition"
                         ? "Definition"
-                        : "Problem Solving"}
+                        : question.type === "problem-solving"
+                          ? "Problem Solving"
+                          : question.type === "long-answer"
+                            ? "Long Answer"
+                            : "Unknown Question Type"}
                   </h3>
                   {question.type === "multiple-choice" && (
                     <div className={`px-2 py-1 rounded-full text-sm font-medium ${
-                      question.correctAnswer === userAnswers[question.id]
+                      (question as MultipleChoiceQuestion).correctAnswer === userAnswers[question.id]
                         ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
                         : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
                     }`}>
-                      {question.correctAnswer === userAnswers[question.id] ? "Correct" : "Incorrect"}
+                      {(question as MultipleChoiceQuestion).correctAnswer === userAnswers[question.id] ? "Correct" : "Incorrect"}
                     </div>
                   )}
+                  {/* For long-answer, correctness is determined by AI, so no immediate correct/incorrect badge here */}
                 </div>
 
                 <div className="mb-4 text-base">
@@ -231,9 +209,9 @@ export default function ScienceQuizReview({ questions, userAnswers }: ScienceQui
 
                 {question.type === "multiple-choice" && (
                   <div className="space-y-2 mb-4">
-                    {question.options.map((option, optionIndex) => {
+                    {(question as MultipleChoiceQuestion).options.map((option: string, optionIndex: number) => {
                       const optionLabel = String.fromCharCode(65 + optionIndex); // A, B, C, D...
-                      const isCorrect = optionLabel === question.correctAnswer;
+                      const isCorrect = optionLabel === (question as MultipleChoiceQuestion).correctAnswer;
                       const isSelected = optionLabel === userAnswers[question.id];
 
                       return (
@@ -263,7 +241,7 @@ export default function ScienceQuizReview({ questions, userAnswers }: ScienceQui
                   </div>
                 )}
 
-                {(question.type === "definition" || question.type === "problem-solving") && (
+                {(question.type === "definition" || question.type === "problem-solving" || question.type === "long-answer") && (
                   <div className="space-y-4 mb-4">
                     <div className="p-3 rounded-lg border border-border">
                       <div className="font-medium mb-1">Your Answer:</div>
@@ -272,16 +250,32 @@ export default function ScienceQuizReview({ questions, userAnswers }: ScienceQui
                       </div>
                     </div>
 
-                    <div className="p-3 rounded-lg bg-green-100 dark:bg-green-900/30 border border-green-500">
-                      <div className="font-medium mb-1">Correct Answer:</div>
-                      <div className="text-sm">{renderWithMath(question.correctAnswer)}</div>
-                    </div>
-
-                    {question.type === "problem-solving" && question.steps && (
-                      <div className="p-3 rounded-lg border border-border">
-                        <div className="font-medium mb-1">Solution Steps:</div>
+                    {/* Only show Correct Answer for definition and problem-solving */}
+                    {(question.type === "definition" || question.type === "problem-solving") && (
+                      <div className="p-3 rounded-lg bg-green-100 dark:bg-green-900/30 border border-green-500">
+                        <div className="font-medium mb-1">Correct Answer:</div>
+                        <div className="text-sm">{renderWithMath((question as DefinitionQuestion | ProblemSolvingQuestion).correctAnswer)}</div>
+                      </div>
+                    )}
+                    
+                    {/* Explanation for Definition and Problem Solving */}
+                    {(question.type === "definition" || question.type === "problem-solving") && Array.isArray(question.explanation) && question.explanation.length > 0 && (
+                      <div className="p-3 rounded-lg bg-muted mt-4">
+                        <div className="font-medium mb-1">Explanation:</div>
                         <ol className="list-decimal list-inside text-sm space-y-1">
-                          {question.steps.map((step, stepIndex) => (
+                          {question.explanation.map((step: string, stepIndex: number) => (
+                            <li key={stepIndex}>{renderWithMath(step)}</li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+
+                    {/* For LongAnswerQuestion, the explanation serves as a reference/model answer */}
+                    {question.type === "long-answer" && Array.isArray(question.explanation) && question.explanation.length > 0 && (
+                       <div className="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/30 border border-blue-500 mt-4">
+                        <div className="font-medium mb-1">Reference Answer / Explanation:</div>
+                        <ol className="list-decimal list-inside text-sm space-y-1">
+                          {question.explanation.map((step: string, stepIndex: number) => (
                             <li key={stepIndex}>{renderWithMath(step)}</li>
                           ))}
                         </ol>
@@ -289,11 +283,18 @@ export default function ScienceQuizReview({ questions, userAnswers }: ScienceQui
                     )}
                   </div>
                 )}
-
-                <div className="p-3 rounded-lg bg-muted">
-                  <div className="font-medium mb-1">Explanation:</div>
-                  <div className="text-sm">{renderWithMath(question.explanation)}</div>
-                </div>
+                
+                {/* General explanation for MCQs */}
+                {question.type === "multiple-choice" && Array.isArray(question.explanation) && question.explanation.length > 0 && (
+                   <div className="p-3 rounded-lg bg-muted mt-4">
+                    <div className="font-medium mb-1">Explanation:</div>
+                    <ol className="list-decimal list-inside text-sm space-y-1">
+                      {question.explanation.map((step: string, stepIndex: number) => (
+                        <li key={stepIndex}>{renderWithMath(step)}</li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
               </div>
             ))}
           </div>

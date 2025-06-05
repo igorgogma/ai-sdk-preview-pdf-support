@@ -10,7 +10,7 @@ const quizParamsSchema = z.object({
   count: z.number().min(3).max(40).default(5),
   difficulty: z.enum(["easy", "medium", "hard"]).default("medium"),
   questionTypes: z.array(
-    z.enum(["multiple-choice", "definition", "problem-solving"])
+    z.enum(["multiple-choice", "definition", "problem-solving", "long-answer"])
   ).min(1, "At least one question type is required"),
 });
 
@@ -54,24 +54,41 @@ export async function POST(req: Request) {
          - The correct answer should include the final result with appropriate units
          - Include a detailed step-by-step solution process
 
+      4. For long-answer questions:
+         - Provide a clear, open-ended question that requires a textual, explanatory answer.
+         - The question should prompt critical thinking, analysis, or detailed explanation rather than a short factual recall.
+         - Specify if any particular grading criteria or key points should be included by the student in their answer. If so, provide these as 'gradingCriteria'.
+
       EXPLANATION REQUIREMENTS:
-      For ALL question types, provide a detailed, step-by-step explanation that:
-      1. Starts by clearly stating the correct answer
-      2. Explains WHY this answer is correct using scientific principles
-      3. Breaks down the reasoning into NUMBERED STEPS (at least 5-7 detailed steps)
-      4. For each step, include:
-         - The specific principle, law, or concept being applied
-         - The mathematical formula with proper LaTeX notation
-         - How this step builds on previous steps
-         - A clear explanation of WHY this step is necessary
-      5. For multiple-choice questions, explain why each incorrect option is wrong
-      6. For problem-solving questions:
-         - Show ALL mathematical work with intermediate calculations
-         - Explain the significance of each variable and constant
-         - Demonstrate unit conversions and dimensional analysis
-         - Highlight common mistakes students might make
-      7. Connect the concept to the broader topic and IB curriculum
-      8. Include a "Key Takeaway" section at the end summarizing the main learning points
+      For ALL question types, provide a detailed, step-by-step explanation as an ARRAY OF STRINGS. Each string in the array represents one clear step in the thought process. The goal is to guide the user through HOW to arrive at the solution, focusing on pedagogical value.
+      The explanation should:
+      1. Begin with a string that clearly states the correct answer (e.g., "Correct Answer: A" or "Correct Definition: Enthalpy is...").
+      2. Subsequent strings in the array should break down the reasoning into logical, sequential steps. Aim for at least 5-7 detailed steps.
+      3. Each step (each string in the array) should:
+         - Clearly articulate the action or thought process for that step (e.g., "First, recall the relevant concept: Newton's Second Law.", "Next, identify the given values from the problem statement: mass (m) = 2kg, acceleration (a) = 3 m/s².").
+         - Explain the scientific principle, law, or concept being applied in that step.
+         - If a mathematical formula is used, state it clearly with proper LaTeX notation (e.g., "Apply the formula: $F = ma$.").
+         - Show how this step builds on previous steps or prepares for subsequent ones.
+         - Explain WHY this step is necessary for solving the problem.
+      4. For multiple-choice questions, after the main step-by-step reasoning for the correct answer, include steps explaining why EACH incorrect option is wrong.
+      5. For problem-solving questions:
+         - Show ALL mathematical work, including intermediate calculations, within the relevant steps.
+         - Explain the significance of each variable and constant used.
+         - Demonstrate unit conversions and dimensional analysis as part of the steps.
+         - Highlight common mistakes students might make and how to avoid them within the steps or as a concluding step.
+      6. Connect the overall concept to the broader topic and, if applicable, the IB curriculum in one of the concluding steps.
+      7. Conclude with a "Key Takeaway" string summarizing the main learning points.
+      Example of a step: "Step 3: Apply the formula for kinetic energy. Kinetic energy is given by $E_k = \\frac{1}{2}mv^2$. We use this formula because the question asks for the energy of motion."
+
+      HINTS REQUIREMENTS:
+      For EACH question, generate exactly 5 distinct hints.
+      These hints should progressively become more obvious and helpful.
+      - Hint 1: A general nudge or concept reminder.
+      - Hint 2: Points to a specific formula or area of knowledge.
+      - Hint 3: Provides a small step, calculation, or piece of information.
+      - Hint 4: Provides a more significant step or reveals more information.
+      - Hint 5: Almost gives away the answer or the direct method to solve it.
+      Ensure each hint is a concise string.
 
       MATHEMATICAL NOTATION REQUIREMENTS:
       CRITICAL: For all mathematical formulas, equations, and expressions, use proper LaTeX notation with dollar signs.
@@ -81,38 +98,38 @@ export async function POST(req: Request) {
       - Use $a_{x}$ instead of $a_x$
       - Use $F_{net}$ instead of $F_net$
       - Use $10^{-3}$ instead of $10^-3$
-      - Use $\theta^{\circ}$ for degrees, not $\theta^\circ$ or $\theta\circ$
+      - Use $\\theta^{\\circ}$ for degrees, not $\\theta^\\circ$ or $\\theta\\circ$
 
       CRITICAL FOR PHYSICS FORMULAS:
-      - For angles with velocity: ALWAYS separate angle and variable with a space: $45^{\circ} \cdot v_{0}$ not $45^{\circ}v_{0}$
+      - For angles with velocity: ALWAYS separate angle and variable with a space: $45^{\\circ} \\cdot v_{0}$ not $45^{\\circ}v_{0}$
       - For equations with exponents: ALWAYS use braces: $20^{0}$ not $20^0$
-      - For double exponents (like degrees with variables): ALWAYS use proper spacing: $45^{\circ} \cdot v_{0}^{2}$ not $45^{\circ}v_{0}^{2}$
-      - For fractions with variables: ALWAYS use braces: $\frac{1}{2}g(v_{\text{total}})^{2}$ not $\frac{1}{2}g(v_total)^2$
+      - For double exponents (like degrees with variables): ALWAYS use proper spacing: $45^{\\circ} \\cdot v_{0}^{2}$ not $45^{\\circ}v_{0}^{2}$
+      - For fractions with variables: ALWAYS use braces: $\\frac{1}{2}g(v_{\\text{total}})^{2}$ not $\\frac{1}{2}g(v_total)^2$
       - ALWAYS use braces for ALL subscripts and superscripts without exception
-      - ALWAYS use \text{} for text within math: $v_{\text{total}}$ not $v_{total}$
+      - ALWAYS use \\text{} for text within math: $v_{\\text{total}}$ not $v_{total}$
       - NEVER place exponents directly next to variables with subscripts without proper spacing
 
       ALWAYS USE PROPER LATEX COMMANDS FOR FUNCTIONS:
-      - Use $\cos(\theta)$ instead of $cos(\theta)$
-      - Use $\sin(\theta)$ instead of $sin(\theta)$
-      - Use $\tan(\theta)$ instead of $tan(\theta)$
-      - Use $\log(x)$ instead of $log(x)$
+      - Use $\\cos(\\theta)$ instead of $cos(\\theta)$
+      - Use $\\sin(\\theta)$ instead of $sin(\\theta)$
+      - Use $\\tan(\\theta)$ instead of $tan(\\theta)$
+      - Use $\\log(x)$ instead of $log(x)$
 
       ALWAYS USE PROPER LATEX COMMANDS FOR GREEK LETTERS:
-      - Use $\theta$ instead of $theta$
-      - Use $\alpha$ instead of $alpha$
-      - Use $\omega$ instead of $omega$
+      - Use $\\theta$ instead of $theta$
+      - Use $\\alpha$ instead of $alpha$
+      - Use $\\omega$ instead of $omega$
 
       EXAMPLES OF CORRECT FORMATTING:
       - "The velocity is $v = 5$ m/s"
       - "The initial velocity is $v_{0} = 10$ m/s"
-      - "The angle is $\theta = 30^{\circ}$"
+      - "The angle is $\\theta = 30^{\\circ}$"
       - "The acceleration is $a = 9.8$ m/s$^{2}$"
       - "The formula $F = ma$"
       - "The equation $E = mc^{2}$"
-      - "The horizontal component is $v_{x} = v_{0}\cos(\theta)$"
-      - "The vertical component is $v_{y} = v_{0}\sin(\theta)$"
-      - For complex equations, use double dollar signs: "$$E = \frac{V}{r} \ln\left(\frac{d}{r}\right)$$"
+      - "The horizontal component is $v_{x} = v_{0}\\cos(\\theta)$"
+      - "The vertical component is $v_{y} = v_{0}\\sin(\\theta)$"
+      - For complex equations, use double dollar signs: "$$E = \\frac{V}{r} \\ln\\left(\\frac{d}{r}\\right)$$"
 
       Always wrap mathematical symbols, variables, and equations in dollar signs ($...$) for inline formulas or double dollar signs ($$...$$) for displayed equations.
 
@@ -125,27 +142,95 @@ export async function POST(req: Request) {
             "question": "Question text with $LaTeX$ formulas",
             "options": ["Option A", "Option B", "Option C", "Option D"],
             "correctAnswer": "A",
-            "explanation": "**Correct Answer: A**\n\n**Step 1: Understanding the concept**\nThe principle of [concept] states that $F = ma$, where $F$ is force, $m$ is mass, and $a$ is acceleration. This fundamental relationship in physics shows that...\n\n**Step 2: Analyzing the question**\nIn this problem, we need to determine [specific analysis]. The key insight is that...\n\n**Step 3: Application of relevant formula**\nWe can apply the formula $E = \\frac{1}{2}mv^2$ to calculate the kinetic energy. This formula is derived from...\n\n**Step 4: Calculation process**\nSubstituting the values: $m = 2$ kg and $v = 5$ m/s, we get:\n$E = \\frac{1}{2} \\times 2 \\times 5^2 = \\frac{1}{2} \\times 2 \\times 25 = 25$ J\n\n**Step 5: Evaluation of options**\nOption A (25 J) matches our calculation and is correct.\nOption B (50 J) is incorrect because it fails to include the $\\frac{1}{2}$ factor in the kinetic energy formula.\nOption C (10 J) is incorrect because it uses the wrong value for velocity.\nOption D (5 J) is incorrect because it confuses kinetic energy with momentum.\n\n**Step 6: Broader context**\nThis concept relates to the conservation of energy principle in the IB Physics curriculum, specifically under Topic 2.3...\n\n**Key Takeaway:**\nKinetic energy depends on both mass and the square of velocity, making velocity changes more significant than mass changes for the same proportional change."
+            "hints": [
+              "Hint 1: Think about the basic definition of this type of energy.",
+              "Hint 2: Recall the formula that relates mass and velocity to this energy.",
+              "Hint 3: Ensure you are using the correct factor (e.g., 1/2) in the formula.",
+              "Hint 4: Double-check your squaring operations.",
+              "Hint 5: The formula is $E_k = \\frac{1}{2}mv^2$. Substitute the given values."
+            ],
+            "explanation": [
+              "Correct Answer: A",
+              "Step 1: Understanding the concept. The question asks for kinetic energy. Kinetic energy is the energy an object possesses due to its motion. The relevant principle is the definition of kinetic energy.",
+              "Step 2: Recall the formula for kinetic energy. The formula for kinetic energy ($E_k$) is $E_k = \\frac{1}{2}mv^2$, where $m$ is mass and $v$ is velocity. This formula is fundamental in classical mechanics.",
+              "Step 3: Identify the given values. From the problem, mass ($m$) = 2 kg and velocity ($v$) = 5 m/s. It's important to note the units.",
+              "Step 4: Substitute the values into the formula. $E_k = \\frac{1}{2} \\times (2 \\text{ kg}) \\times (5 \\text{ m/s})^2$. This step involves direct substitution.",
+              "Step 5: Perform the calculation. First, square the velocity: $(5 \\text{ m/s})^2 = 25 \\text{ m}^2/\\text{s}^2$. Then, multiply by the mass and $\\frac{1}{2}$: $E_k = \\frac{1}{2} \\times 2 \\text{ kg} \\times 25 \\text{ m}^2/\\text{s}^2 = 1 \\text{ kg} \\times 25 \\text{ m}^2/\\text{s}^2 = 25 \\text{ J}$. The unit kg·m²/s² is equivalent to Joules (J).",
+              "Step 6: Evaluate the options. Option A (25 J) matches our calculation.",
+              "Step 7: Analyze incorrect options. Option B (50 J) is incorrect; this would result if the $\\frac{1}{2}$ factor was omitted ($2 \\times 25 = 50$). Option C (10 J) is incorrect; this might arise from an arithmetic error or misremembering the formula (e.g., $m \\times v = 2 \\times 5 = 10$, which is momentum, not energy). Option D (5 J) is incorrect; this could be a miscalculation or misunderstanding of the relationship between variables.",
+              "Step 8: Broader context. This problem relates to the concept of energy in physics, specifically mechanical energy, which is a core part of the IB Physics curriculum (Topic 2: Mechanics).",
+              "Key Takeaway: Kinetic energy is proportional to mass and the square of velocity. Always ensure you use the correct formula ($E_k = \\frac{1}{2}mv^2$) and perform calculations carefully, paying attention to units."
+            ]
           },
           {
             "type": "definition",
             "question": "Define the term X",
             "correctAnswer": "Definition with $LaTeX$ formulas if needed",
-            "explanation": "**Correct Definition:**\nEnthalpy ($H$) is a thermodynamic property of a system defined as the sum of the internal energy ($U$) plus the product of pressure ($P$) and volume ($V$): $H = U + PV$. It represents the total heat content of a system at constant pressure.\n\n**Step 1: Etymology and historical context**\nThe term 'enthalpy' comes from the Greek word 'enthalpein' meaning 'to heat'. It was introduced by Heike Kamerlingh Onnes in 1909 to...\n\n**Step 2: Mathematical definition**\nEnthalpy is defined by the equation $H = U + PV$, where:\n- $H$ is enthalpy (measured in joules, J)\n- $U$ is internal energy (J)\n- $P$ is pressure (pascals, Pa)\n- $V$ is volume (cubic meters, m³)\n\n**Step 3: Physical interpretation**\nEnthalpy represents the total heat content available in a thermodynamic system. The key insight is that...\n\n**Step 4: Relationship to other thermodynamic properties**\nEnthalpy is related to Gibbs free energy ($G$) through the equation $G = H - TS$, where $T$ is temperature and $S$ is entropy. This relationship is important because...\n\n**Step 5: Applications in chemistry**\nIn chemical reactions, we often measure the change in enthalpy ($\\Delta H$) rather than absolute enthalpy. For a reaction at constant pressure, $\\Delta H$ equals the heat transferred ($q_p$): $\\Delta H = q_p$. This is crucial for understanding...\n\n**Step 6: Standard enthalpy of formation**\nThe standard enthalpy of formation ($\\Delta H_f^\\circ$) is the change in enthalpy when one mole of a compound forms from its elements in their standard states. For example...\n\n**Step 7: Connection to IB curriculum**\nIn the IB Chemistry curriculum, enthalpy is covered in Topic 5 (Energetics/Thermochemistry) and is fundamental to understanding...\n\n**Key Takeaway:**\nEnthalpy is a state function that helps us track energy changes in chemical and physical processes, particularly useful for processes occurring at constant pressure like most laboratory reactions."
+            "hints": [
+               "Hint 1: What is the general field this term belongs to?",
+               "Hint 2: Think about its constituent parts or what it's composed of.",
+               "Hint 3: What is its primary purpose or what does it measure?",
+               "Hint 4: Recall the mathematical formula that defines it.",
+               "Hint 5: It's defined as $H = U + PV$."
+            ],
+            "explanation": [
+             "Correct Definition: Enthalpy ($H$) is a thermodynamic property of a system defined as the sum of the internal energy ($U$) plus the product of pressure ($P$) and volume ($V$): $H = U + PV$. It represents the total heat content of a system at constant pressure.",
+             "Step 1: Identify the core components of the definition. The definition involves internal energy ($U$), pressure ($P$), and volume ($V$).",
+             "Step 2: State the mathematical formula. Enthalpy is expressed by the equation $H = U + PV$. This is the foundational mathematical representation.",
+             "Step 3: Explain the physical meaning. Enthalpy quantifies the total heat content of a system when pressure is held constant. This is particularly useful for chemical reactions carried out in open containers.",
+             "Step 4: Discuss its units. Enthalpy, like other forms of energy, is typically measured in Joules (J) or kilojoules (kJ).",
+             "Step 5: Elaborate on its significance. Enthalpy is a state function, meaning its value depends only on the current state of the system, not on how it reached that state. Changes in enthalpy ($\\Delta H$) are crucial for studying heat changes in chemical reactions (exothermic or endothermic).",
+             "Step 6: Connect to practical applications. For example, the enthalpy of combustion ($\\Delta H_c$) measures the heat released when a substance burns completely. This is vital in fields like fuel science and engineering.",
+             "Step 7: Relate to the IB curriculum. In IB Chemistry, enthalpy is a key concept in Topic 5 (Energetics/Thermochemistry) and Topic 15 (Advanced Energetics/Thermochemistry for HL).",
+             "Key Takeaway: Enthalpy ($H = U + PV$) is a measure of a system's total heat content at constant pressure, essential for understanding energy changes in chemical and physical processes."
+           ]
           },
           {
             "type": "problem-solving",
             "question": "Problem statement with $LaTeX$ formulas",
-            "correctAnswer": "Final answer with $LaTeX$ formulas",
-            "steps": [
-              "Step 1: Initial setup - Identify the relevant formula: $E = mc^2$",
-              "Step 2: Identify known variables - Mass $m = 5$ kg, speed of light $c = 3 \\times 10^8$ m/s",
-              "Step 3: Substitute values - $E = 5 \\times (3 \\times 10^8)^2$ J",
-              "Step 4: Calculate intermediate result - $c^2 = 9 \\times 10^{16}$ m²/s²",
-              "Step 5: Calculate final answer - $E = 5 \\times 9 \\times 10^{16} = 4.5 \\times 10^{17}$ J",
-              "Step 6: Verify units - Energy is measured in joules (J)"
+            "correctAnswer": "Final answer with $LaTeX$ formulas, e.g., $E = 4.5 \\times 10^{17}$ J",
+            "hints": [
+               "Hint 1: What fundamental principle relates mass and energy?",
+               "Hint 2: Recall the famous equation by Einstein involving $E$, $m$, and $c$.",
+               "Hint 3: Remember to square the speed of light ($c$).",
+               "Hint 4: The value of $c$ is approximately $3 \\times 10^8$ m/s.",
+               "Hint 5: Use $E = mc^2$. Substitute $m=5$ kg and $c=3 \\times 10^8$ m/s, then calculate."
             ],
-            "explanation": "**Correct Answer: $E = 4.5 \\times 10^{17}$ J**\n\n**Step 1: Understanding the physical principle**\nThis problem involves Einstein's mass-energy equivalence principle, expressed by the equation $E = mc^2$. This fundamental relationship in physics shows that mass and energy are equivalent and can be converted from one form to another. The equation states that the energy ($E$) equivalent to a mass ($m$) equals the mass times the speed of light squared ($c^2$).\n\n**Step 2: Identifying the relevant variables**\nIn this problem, we have:\n- Mass: $m = 5$ kg\n- Speed of light: $c = 3 \\times 10^8$ m/s\n- We need to find: Energy ($E$) in joules (J)\n\n**Step 3: Setting up the calculation**\nWe'll use the formula $E = mc^2$ directly. This formula comes from Einstein's Special Theory of Relativity (1905) and represents one of the most famous equations in physics. It's important because it shows that even a small amount of mass can be converted into an enormous amount of energy.\n\n**Step 4: Calculating the square of the speed of light**\nFirst, we need to calculate $c^2$:\n$c^2 = (3 \\times 10^8)^2 = 9 \\times 10^{16}$ m²/s²\n\nThis step is crucial because the speed of light is extremely large, and when squared, it becomes even more significant, explaining why nuclear reactions release so much energy from small amounts of mass.\n\n**Step 5: Multiplying by the mass**\nNow we multiply the mass by $c^2$:\n$E = m \\times c^2 = 5 \\times 9 \\times 10^{16} = 45 \\times 10^{16} = 4.5 \\times 10^{17}$ J\n\n**Step 6: Analyzing the units**\nLet's verify that our units are correct:\n- Mass is in kg\n- Speed of light squared is in m²/s²\n- When multiplied: kg × m²/s² = kg·m²/s² = J (joules)\n\nThis dimensional analysis confirms our answer has the correct units of energy.\n\n**Step 7: Contextualizing the result**\nTo understand the magnitude of this energy, let's compare it to something familiar. This amount of energy (4.5 × 10¹⁷ J) is approximately equivalent to the energy released by 100 megatons of TNT, or about 2,000 times the energy of the largest nuclear weapon ever detonated (Tsar Bomba). This demonstrates why nuclear reactions, which convert small amounts of mass to energy, can release such enormous amounts of energy.\n\n**Common mistake to avoid:** Students often forget to square the speed of light or make errors in scientific notation when dealing with such large numbers. Always be careful with exponents when calculating with very large or small numbers.\n\n**Key Takeaway:**\nEinstein's equation $E = mc^2$ demonstrates the fundamental equivalence of mass and energy, showing that a small amount of mass can be converted into an enormous amount of energy. This principle underlies nuclear reactions and explains why they can produce such vast amounts of energy compared to chemical reactions."
+            "explanation": [
+              "Correct Answer: $E = 4.5 \\times 10^{17}$ J",
+              "Step 1: Understand the physical principle. This problem uses Einstein's mass-energy equivalence, $E=mc^2$, which states that energy ($E$) and mass ($m$) are interconvertible, related by the square of the speed of light ($c$).",
+              "Step 2: Identify known variables and the unknown. Given: mass $m = 5$ kg. The speed of light $c$ is a constant, approximately $3 \\times 10^8$ m/s. Unknown: Energy $E$.",
+              "Step 3: Write down the formula. The formula to use is $E = mc^2$. This is a cornerstone of modern physics.",
+              "Step 4: Calculate $c^2$. $(3 \\times 10^8 \\text{ m/s})^2 = (3^2) \\times (10^8)^2 \\text{ m}^2/\\text{s}^2 = 9 \\times 10^{16} \\text{ m}^2/\\text{s}^2$. Be careful with squaring the power of 10.",
+              "Step 5: Substitute the values of $m$ and $c^2$ into the formula. $E = (5 \\text{ kg}) \\times (9 \\times 10^{16} \\text{ m}^2/\\text{s}^2)$.",
+              "Step 6: Perform the multiplication. $E = (5 \\times 9) \\times 10^{16} \\text{ kg} \\cdot \\text{m}^2/\\text{s}^2 = 45 \\times 10^{16} \\text{ J}$.",
+              "Step 7: Express the answer in standard scientific notation. $45 \\times 10^{16} \\text{ J} = 4.5 \\times 10^1 \\times 10^{16} \\text{ J} = 4.5 \\times 10^{17} \\text{ J}$.",
+              "Step 8: Verify units. The unit kg·m²/s² is the definition of a Joule (J), which is the standard unit of energy. The units are consistent.",
+              "Common Mistake: A common error is forgetting to square the speed of light, or making a mistake in calculating $(10^8)^2$. It is $10^{16}$, not $10^{10}$ or $10^6$.",
+              "Key Takeaway: Mass-energy equivalence ($E=mc^2$) shows that a small amount of mass can be converted into a very large amount of energy, due to the large value of $c^2$. This is the principle behind nuclear energy."
+            ]
+          },
+          {
+            "type": "long-answer",
+            "question": "Explain the concept of inertia and provide two real-world examples. Discuss how Newton's First Law of Motion relates to inertia.",
+            "gradingCriteria": "The answer should clearly define inertia, provide two distinct and relevant real-world examples, and accurately explain the connection to Newton's First Law. Key points: definition of inertia (resistance to change in motion), examples (e.g., passenger in a stopping car, pulling a tablecloth from under dishes), Newton's First Law (object at rest stays at rest, object in motion stays in motion unless acted upon by a net force).",
+            "hints": [
+               "Hint 1: Think about what makes it hard to start moving a heavy object or stop a moving one.",
+               "Hint 2: Consider everyday situations where you experience a resistance to changes in your state of motion.",
+               "Hint 3: Recall Newton's laws of motion. Which one specifically deals with objects maintaining their current state of motion?",
+               "Hint 4: One example could involve a vehicle. Another could involve an object at rest.",
+               "Hint 5: Inertia is the tendency of an object to resist changes in its state of motion. Newton's First Law is often called the law of inertia."
+            ],
+            "explanation": [
+             "Ideal Answer Outline:",
+             "Step 1: Define Inertia. Inertia is the natural tendency of an object to resist changes in its state of motion. This means an object at rest wants to stay at rest, and an object moving at a constant velocity wants to continue moving at that velocity. Inertia is directly proportional to an object's mass – more mass means more inertia.",
+             "Step 2: Provide Real-World Example 1. Example: A passenger in a car that suddenly brakes. The passenger continues to move forward relative to the car. This is because the passenger's body, due to inertia, tends to maintain its original state of motion (moving forward with the car's initial velocity). The seatbelt then applies an external force to change the passenger's state of motion.",
+             "Step 3: Provide Real-World Example 2. Example: Trying to push a heavy box across the floor. It's harder to get the box moving from rest than a lighter box. Once moving, it's also harder to stop the heavy box. This is because the heavy box has more mass and therefore more inertia, resisting changes to its velocity (either from 0 m/s or to 0 m/s).",
+             "Step 4: State Newton's First Law of Motion. Newton's First Law (also known as the Law of Inertia) states that an object will remain at rest, or in uniform motion in a straight line, unless acted upon by a net external force.",
+             "Step 5: Explain the relationship between Inertia and Newton's First Law. Newton's First Law is essentially a formal statement of the concept of inertia. It tells us that objects don't change their motion spontaneously; a force is required. Inertia is the property of matter that Newton's First Law describes. The law quantifies that an object's velocity (which includes speed and direction) remains constant if and only if the net force acting on it is zero.",
+             "Step 6: Elaborate on 'unbalanced force'. An unbalanced or net external force is a force that is not countered by another force, leading to a change in the object's motion (i.e., acceleration). If forces are balanced, the net force is zero, and the object's state of motion doesn't change, as per the law of inertia.",
+             "Key Takeaway: Inertia is an object's resistance to changes in its motion, quantified by its mass. Newton's First Law formalizes this by stating that an object's velocity remains constant unless a net external force acts on it."
+           ]
           }
         ]
       }
@@ -162,7 +247,7 @@ export async function POST(req: Request) {
 
     try {
       // System prompt for the quiz generation
-      const systemPrompt = "You are an expert IB science teacher specializing in Chemistry, Physics, and Biology with 20+ years of experience teaching IB DP students. Your expertise includes creating educational content that follows IB curriculum standards and assessment criteria. Your explanations are known for being exceptionally clear, methodical, and step-by-step, helping students truly understand complex scientific concepts rather than just memorizing facts. You excel at breaking down difficult topics into logical steps and explaining WHY scientific principles work the way they do, not just WHAT they are. You always use proper mathematical notation and ensure your explanations connect to the broader scientific context. Your goal is to create quiz questions that not only test knowledge but also serve as effective learning tools through their detailed, structured explanations.\n\nCRITICAL FORMATTING REQUIREMENTS:\n1. Always use proper LaTeX notation for ALL mathematical formulas, equations, and expressions.\n2. ALWAYS use braces for subscripts and superscripts: $v_{0}$ not $v_0$, $a_{x}$ not $a_x$, $10^{-3}$ not $10^-3$.\n3. ALWAYS use proper LaTeX commands for functions: $\\cos(\\theta)$ not $cos(\\theta)$, $\\sin(\\theta)$ not $sin(\\theta)$.\n4. ALWAYS use proper LaTeX commands for Greek letters: $\\theta$ not $theta$, $\\alpha$ not $alpha$.\n5. For degrees, use $30^{\\circ}$ not $30\\circ$ or $30^\\circ$.\n6. ALWAYS separate angle measurements from variables with a space or multiplication symbol: $45^{\\circ} \\cdot v_{0}$ not $45^{\\circ}v_{0}$.\n7. ALWAYS use \\text{} for text within math: $v_{\\text{total}}$ not $v_{total}$.\n8. NEVER place exponents directly next to variables with subscripts without proper spacing.\n9. Format explanations in a clear, step-by-step manner with proper headings and structure.\n\nCRITICAL FOR PHYSICS FORMULAS:\n1. For angles with velocity: ALWAYS separate angle and variable with a space: $45^{\\circ} \\cdot v_{0}$ not $45^{\\circ}v_{0}$\n2. For equations with exponents: ALWAYS use braces: $20^{0}$ not $20^0$\n3. For double exponents (like degrees with variables): ALWAYS use proper spacing: $45^{\\circ} \\cdot v_{0}^{2}$ not $45^{\\circ}v_{0}^{2}$\n4. For fractions with variables: ALWAYS use braces: $\\frac{1}{2}g(v_{\\text{total}})^{2}$ not $\\frac{1}{2}g(v_total)^2$\n5. ALWAYS use braces for ALL subscripts and superscripts without exception\n6. ALWAYS use \\text{} for text within math: $v_{\\text{total}}$ not $v_{total}$\n7. NEVER place exponents directly next to variables with subscripts without proper spacing\n\nWhen provided with additional context about a topic, use this information to create more accurate, detailed, and curriculum-aligned questions. Incorporate specific facts, concepts, and terminology from the provided context, but adapt them to create appropriate questions rather than copying directly. Ensure all information used is scientifically accurate and relevant to the IB curriculum.";
+      const systemPrompt = "You are an expert IB science teacher specializing in Chemistry, Physics, and Biology with 20+ years of experience teaching IB DP students. Your expertise includes creating educational content that follows IB curriculum standards and assessment criteria. Your explanations are known for being exceptionally clear, methodical, and step-by-step, helping students truly understand complex scientific concepts rather than just memorizing facts. You excel at breaking down difficult topics into logical steps and explaining WHY scientific principles work the way they do, not just WHAT they are. You always use proper mathematical notation and ensure your explanations connect to the broader scientific context. Your goal is to create quiz questions that not only test knowledge but also serve as effective learning tools through their detailed, structured explanations.\\n\\nCRITICAL FORMATTING REQUIREMENTS:\\n1. Always use proper LaTeX notation for ALL mathematical formulas, equations, and expressions.\\n2. ALWAYS use braces for subscripts and superscripts: $v_{0}$ not $v_0$, $a_{x}$ not $a_x$, $10^{-3}$ not $10^-3$.\\n3. ALWAYS use proper LaTeX commands for functions: $\\cos(\\theta)$ not $cos(\\theta)$, $\\sin(\\theta)$ not $sin(\\theta)$.\\n4. ALWAYS use proper LaTeX commands for Greek letters: $\\theta$ not $theta$, $\\alpha$ not $alpha$.\\n5. For degrees, use $30^{\\circ}$ not $30\\circ$ or $30^\\circ$.\\n6. ALWAYS separate angle measurements from variables with a space or multiplication symbol: $45^{\\circ} \\cdot v_{0}$ not $45^{\\circ}v_{0}$.\\n7. ALWAYS use \\text{} for text within math: $v_{\\text{total}}$ not $v_{total}$.\\n8. NEVER place exponents directly next to variables with subscripts without proper spacing.\\n9. Format explanations in a clear, step-by-step manner with proper headings and structure.\\n\\nCRITICAL FOR PHYSICS FORMULAS:\\n1. For angles with velocity: ALWAYS separate angle and variable with a space: $45^{\\circ} \\cdot v_{0}$ not $45^{\\circ}v_{0}$\\n2. For equations with exponents: ALWAYS use braces: $20^{0}$ not $20^0$\\n3. For double exponents (like degrees with variables): ALWAYS use proper spacing: $45^{\\circ} \\cdot v_{0}^{2}$ not $45^{\\circ}v_{0}^{2}$\\n4. For fractions with variables: ALWAYS use braces: $\\frac{1}{2}g(v_{\\text{total}})^{2}$ not $\\frac{1}{2}g(v_total)^2$\\n5. ALWAYS use braces for ALL subscripts and superscripts without exception\\n6. ALWAYS use \\text{} for text within math: $v_{\\text{total}}$ not $v_{total}$\\n7. NEVER place exponents directly next to variables with subscripts without proper spacing\\n\\nWhen provided with additional context about a topic, use this information to create more accurate, detailed, and curriculum-aligned questions. Incorporate specific facts, concepts, and terminology from the provided context, but adapt them to create appropriate questions rather than copying directly. Ensure all information used is scientifically accurate and relevant to the IB curriculum.";
 
       // Get the LLM provider
       console.log("Getting LLM provider...");
@@ -207,7 +292,7 @@ export async function POST(req: Request) {
               // Remove markdown code blocks if present (```json ... ```)
               if (content.startsWith("```") && content.endsWith("```")) {
                 // Extract the content between the first ``` and the last ```
-                content = content.substring(content.indexOf('\n') + 1, content.lastIndexOf('```')).trim();
+                content = content.substring(content.indexOf('\\n') + 1, content.lastIndexOf('```')).trim();
               }
 
               console.log("Cleaned content:", content.substring(0, 100) + "...");
@@ -244,16 +329,16 @@ export async function POST(req: Request) {
                     console.log("Attempting manual extraction of questions");
 
                     // Extract questions array using regex
-                    const questionsMatch = content.match(/"questions"\s*:\s*\[([\s\S]*?)\]\s*\}/);
+                    const questionsMatch = content.match(/"questions"\\s*:\\s*\\\[([\\s\\S]*?)\\\]\\s*\\}/);
 
                     if (questionsMatch && questionsMatch[1]) {
                       const questionsContent = questionsMatch[1];
 
                       // Split by question objects
-                      const questionObjects = questionsContent.split(/\},\s*\{/).map((q: string, i: number) => {
+                      const questionObjects = questionsContent.split(/\\},\\s*\\{/).map((q: string, i: number) => {
                         // Add back the curly braces except for first and last
                         if (i === 0) return q + '}';
-                        if (i === questionsContent.split(/\},\s*\{/).length - 1) return '{' + q;
+                        if (i === questionsContent.split(/\\},\\s*\\{/).length - 1) return '{' + q;
                         return '{' + q + '}';
                       });
 
@@ -262,17 +347,17 @@ export async function POST(req: Request) {
                       for (const qObj of questionObjects) {
                         try {
                           // Extract fields using regex
-                          const typeMatch = qObj.match(/"type"\s*:\s*"([^"]+)"/);
-                          const questionMatch = qObj.match(/"question"\s*:\s*"([^"]+)"/);
-                          const correctAnswerMatch = qObj.match(/"correctAnswer"\s*:\s*"([^"]+)"/);
-                          const explanationMatch = qObj.match(/"explanation"\s*:\s*"([^"]+)"/);
+                          const typeMatch = qObj.match(/"type"\\s*:\\s*"([^"]+)"/);
+                          const questionMatch = qObj.match(/"question"\\s*:\\s*"([^"]+)"/);
+                          const correctAnswerMatch = qObj.match(/"correctAnswer"\\s*:\\s*"([^"]+)"/);
+                          const explanationMatch = qObj.match(/"explanation"\\s*:\\s*"([^"]+)"/);
 
                           // For multiple choice, extract options
-                          const optionsMatch = qObj.match(/"options"\s*:\s*\[([\s\S]*?)\]/);
+                          const optionsMatch = qObj.match(/"options"\\s*:\\s*\\\[([\\s\\S]*?)\\\]/);
                           let options = [];
 
                           if (optionsMatch && optionsMatch[1]) {
-                            options = optionsMatch[1].split(/",\s*"/).map((opt: string) => {
+                            options = optionsMatch[1].split(/",\\s*"/).map((opt: string) => {
                               return opt.replace(/^"/, '').replace(/"$/, '');
                             });
                           }
@@ -286,9 +371,9 @@ export async function POST(req: Request) {
                             options?: string[];
                           } = {
                             type: typeMatch ? typeMatch[1] : "unknown",
-                            question: questionMatch ? questionMatch[1].replace(/\\"/g, '"') : "Unknown question",
+                            question: questionMatch ? questionMatch[1].replace(/\\\\"/g, '"') : "Unknown question",
                             correctAnswer: correctAnswerMatch ? correctAnswerMatch[1] : "",
-                            explanation: explanationMatch ? explanationMatch[1].replace(/\\"/g, '"') : ""
+                            explanation: explanationMatch ? explanationMatch[1].replace(/\\\\"/g, '"') : ""
                           };
 
                           if (options.length > 0) {
@@ -325,9 +410,9 @@ export async function POST(req: Request) {
                   const directContent = response.text;
 
                   // Check for JSON in markdown
-                  const jsonMatch = directContent.match(/```json\n([\s\S]*?)\n```/) ||
-                                   directContent.match(/```\n([\s\S]*?)\n```/) ||
-                                   directContent.match(/{[\s\S]*}/);
+                  const jsonMatch = directContent.match(/```json\\n([\\s\\S]*?)\\n```/) ||
+                                   directContent.match(/```\\n([\\s\\S]*?)\\n```/) ||
+                                   directContent.match(/\\{[\\s\\S]*\\}/);
 
                   if (jsonMatch) {
                     let extractedJson = jsonMatch[1] || jsonMatch[0];
@@ -380,7 +465,7 @@ export async function POST(req: Request) {
                           let aggressiveFixedJson = extractedJson.replace(/\\/g, "\\\\");
 
                           // Fix double escaped quotes
-                          aggressiveFixedJson = aggressiveFixedJson.replace(/\\\\\"/g, '\\"');
+                          aggressiveFixedJson = aggressiveFixedJson.replace(/\\\\\\"/g, '\\"');
 
                           console.log("Attempting aggressive JSON fixing");
                           parsedContent = JSON.parse(aggressiveFixedJson);
@@ -402,16 +487,16 @@ export async function POST(req: Request) {
                     console.log("Attempting manual extraction from direct response");
 
                     // Extract questions array using regex
-                    const questionsMatch = response.text.match(/"questions"\s*:\s*\[([\s\S]*?)\]\s*\}/);
+                    const questionsMatch = response.text.match(/"questions"\\s*:\\s*\\\[([\\s\\S]*?)\\\]\\s*\\}/);
 
                     if (questionsMatch && questionsMatch[1]) {
                       const questionsContent = questionsMatch[1];
 
                       // Split by question objects
-                      const questionObjects = questionsContent.split(/\},\s*\{/).map((q: string, i: number) => {
+                      const questionObjects = questionsContent.split(/\\},\\s*\\{/).map((q: string, i: number) => {
                         // Add back the curly braces except for first and last
                         if (i === 0) return q + '}';
-                        if (i === questionsContent.split(/\},\s*\{/).length - 1) return '{' + q;
+                        if (i === questionsContent.split(/\\},\\s*\\{/).length - 1) return '{' + q;
                         return '{' + q + '}';
                       });
 
@@ -420,17 +505,17 @@ export async function POST(req: Request) {
                       for (const qObj of questionObjects) {
                         try {
                           // Extract fields using regex
-                          const typeMatch = qObj.match(/"type"\s*:\s*"([^"]+)"/);
-                          const questionMatch = qObj.match(/"question"\s*:\s*"([^"]+)"/);
-                          const correctAnswerMatch = qObj.match(/"correctAnswer"\s*:\s*"([^"]+)"/);
-                          const explanationMatch = qObj.match(/"explanation"\s*:\s*"([^"]+)"/);
+                          const typeMatch = qObj.match(/"type"\\s*:\\s*"([^"]+)"/);
+                          const questionMatch = qObj.match(/"question"\\s*:\\s*"([^"]+)"/);
+                          const correctAnswerMatch = qObj.match(/"correctAnswer"\\s*:\\s*"([^"]+)"/);
+                          const explanationMatch = qObj.match(/"explanation"\\s*:\\s*"([^"]+)"/);
 
                           // For multiple choice, extract options
-                          const optionsMatch = qObj.match(/"options"\s*:\s*\[([\s\S]*?)\]/);
+                          const optionsMatch = qObj.match(/"options"\\s*:\\s*\\\[([\\s\\S]*?)\\\]/);
                           let options: string[] = [];
 
                           if (optionsMatch && optionsMatch[1]) {
-                            options = optionsMatch[1].split(/",\s*"/).map((opt: string) => {
+                            options = optionsMatch[1].split(/",\\s*"/).map((opt: string) => {
                               return opt.replace(/^"/, '').replace(/"$/, '');
                             });
                           }
@@ -445,9 +530,9 @@ export async function POST(req: Request) {
                             steps?: string[];
                           } = {
                             type: typeMatch ? typeMatch[1] : "unknown",
-                            question: questionMatch ? questionMatch[1].replace(/\\"/g, '"') : "Unknown question",
-                            correctAnswer: correctAnswerMatch ? correctAnswerMatch[1].replace(/\\"/g, '"') : "",
-                            explanation: explanationMatch ? explanationMatch[1].replace(/\\"/g, '"') : ""
+                            question: questionMatch ? questionMatch[1].replace(/\\\\"/g, '"') : "Unknown question",
+                            correctAnswer: correctAnswerMatch ? correctAnswerMatch[1].replace(/\\\\"/g, '"') : "",
+                            explanation: explanationMatch ? explanationMatch[1].replace(/\\\\"/g, '"') : ""
                           };
 
                           if (options.length > 0) {
@@ -455,9 +540,9 @@ export async function POST(req: Request) {
                           }
 
                           // For problem-solving, extract steps
-                          const stepsMatch = qObj.match(/"steps"\s*:\s*\[([\s\S]*?)\]/);
+                          const stepsMatch = qObj.match(/"steps"\\s*:\\s*\\\[([\\s\\S]*?)\\\]/);
                           if (stepsMatch && stepsMatch[1]) {
-                            const steps = stepsMatch[1].split(/",\s*"/).map((step: string) => {
+                            const steps = stepsMatch[1].split(/",\\s*"/).map((step: string) => {
                               return step.replace(/^"/, '').replace(/"$/, '');
                             });
                             question.steps = steps;
@@ -520,7 +605,8 @@ export async function POST(req: Request) {
         // Process the questions
         const questions = parsedContent.questions.map((q: any, index: number) => ({
           ...q,
-          id: `q-${index}`,
+          id: `q-${index}`, // Using a simpler ID for now based on the current file content
+          hints: q.hints || [], // Ensure hints is an array, default to empty if not provided
         }));
 
         // Get the generation ID from the response or data
@@ -566,16 +652,17 @@ export async function POST(req: Request) {
         note: "Using mock data due to API call error"
       });
     }
-  } catch (error) {
-    console.error("Error generating quiz:", error);
-    return NextResponse.json(
-      { error: "Failed to generate quiz" },
-      { status: 500 }
-    );
+  } catch (validationError) {
+    if (validationError instanceof z.ZodError) {
+      return NextResponse.json({ error: validationError.errors }, { status: 400 });
+    }
+    console.error("Unexpected error:", validationError);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
-// Function to generate mock questions for testing
+
+// Mock data generation function (remains unchanged)
 function generateMockQuestions(
   topic: string,
   subject: string,
@@ -583,48 +670,46 @@ function generateMockQuestions(
   difficulty: string,
   questionTypes: string[]
 ) {
-  const questions = [];
-
+  const mocks = [];
   for (let i = 0; i < count; i++) {
-    const questionType = questionTypes[i % questionTypes.length];
+    const type = questionTypes[i % questionTypes.length];
+    let question: any = {
+      id: `mock-${topic}-${i + 1}`,
+      type: type,
+      question: `Mock ${type} question ${i + 1} about ${topic} (${difficulty} ${subject})`,
+      explanation: `Mock explanation for question ${i + 1}. This is where a detailed step-by-step explanation would go, including LaTeX formulas like $E=mc^2$.`,
+      hints: [
+        `Mock Hint 1 for question ${i+1}`,
+        `Mock Hint 2 for question ${i+1}`,
+        `Mock Hint 3 for question ${i+1}`,
+        `Mock Hint 4 for question ${i+1}`,
+        `Mock Hint 5 for question ${i+1}`
+      ]
+    };
 
-    if (questionType === "multiple-choice") {
-      questions.push({
-        id: `q-${i}`,
-        type: "multiple-choice",
-        question: `What is a key concept in ${topic} in the field of ${subject}?`,
-        options: [
-          "First possible answer",
-          "Second possible answer",
-          "Third possible answer",
-          "Fourth possible answer"
-        ],
+    if (type === "multiple-choice") {
+      question = {
+        ...question,
+        options: ["Mock Option A", "Mock Option B", "Mock Option C", "Mock Option D"],
         correctAnswer: "A",
-        explanation: `This is an explanation of the correct answer for this ${difficulty} question about ${topic} in ${subject}.`
-      });
-    } else if (questionType === "definition") {
-      questions.push({
-        id: `q-${i}`,
-        type: "definition",
-        question: `Define the following term related to ${topic} in ${subject}:`,
-        correctAnswer: `This is the definition of a term related to ${topic} in the field of ${subject}.`,
-        explanation: `This is an explanation of why this definition is important in ${topic} for ${subject} studies.`
-      });
-    } else if (questionType === "problem-solving") {
-      questions.push({
-        id: `q-${i}`,
-        type: "problem-solving",
-        question: `Solve this ${difficulty} problem related to ${topic} in ${subject}:`,
-        correctAnswer: `This is the solution to the problem.`,
+      };
+    } else if (type === "definition") {
+      question = {
+        ...question,
+        correctAnswer: `Mock definition for term in question ${i + 1}.`,
+      };
+    } else if (type === "problem-solving") {
+      question = {
+        ...question,
+        correctAnswer: `Mock solution to problem in question ${i + 1}.`,
         steps: [
-          "Step 1 of solving the problem",
-          "Step 2 of solving the problem",
-          "Step 3 of solving the problem"
+          "Mock Step 1: Identify formula $a^2+b^2=c^2$",
+          "Mock Step 2: Substitute values",
+          "Mock Step 3: Calculate result",
         ],
-        explanation: `This is an explanation of the problem-solving approach for ${topic} in the context of ${subject}.`
-      });
+      };
     }
+    mocks.push(question);
   }
-
-  return questions;
+  return mocks;
 }

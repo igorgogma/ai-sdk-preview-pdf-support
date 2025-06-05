@@ -7,10 +7,12 @@ import { Question } from '@/lib/schemas'
 interface QuizReviewProps {
   questions: Question[]
   userAnswers: string[]
+  hintsUsedPerQuestion: number[]
 }
 
-export default function QuizReview({ questions, userAnswers }: QuizReviewProps) {
+export default function QuizReview({ questions, userAnswers, hintsUsedPerQuestion }: QuizReviewProps) {
   const answerLabels: ("A" | "B" | "C" | "D")[] = ["A", "B", "C", "D"]
+  const totalHintsUsed = hintsUsedPerQuestion.reduce((acc, hints) => acc + hints, 0);
 
   return (
     <Card className="w-full">
@@ -18,6 +20,9 @@ export default function QuizReview({ questions, userAnswers }: QuizReviewProps) 
         <CardTitle className="text-2xl font-bold">Quiz Review</CardTitle>
       </CardHeader>
       <CardContent>
+        <div className="mb-4 text-md font-medium">
+          Total hints used: {totalHintsUsed}
+        </div>
           {questions.map((question, questionIndex) => (
             <div key={questionIndex} className="mb-8 last:mb-0">
               <h3 className="text-lg font-semibold mb-4">{question.question}</h3>
@@ -50,6 +55,9 @@ export default function QuizReview({ questions, userAnswers }: QuizReviewProps) 
                     </div>
                   )
                 })}
+              </div>
+              <div className="mt-2 text-sm text-muted-foreground">
+                Hints used: {hintsUsedPerQuestion[questionIndex]}/5
               </div>
             </div>
           ))}
