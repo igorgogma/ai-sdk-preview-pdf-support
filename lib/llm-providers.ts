@@ -427,7 +427,7 @@ export class XenAIProvider implements LLMProvider {
   async generateContent(prompt: string, systemPrompt: string, options: any = {}): Promise<LLMProviderResponse> {
     console.log("Using XenAI API");
 
-    const response = await fetch("https://chat.xenai.tech/api/v1/chat/completions", { // Corrected API endpoint
+    const response = await fetch("https://chat.xenai.tech/api/chat/completions", { // Corrected API endpoint
       method: "POST",
       headers: {
         "Content-Type": "application/json",
