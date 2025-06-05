@@ -444,8 +444,7 @@ export class XenAIProvider implements LLMProvider {
             role: "user",
             content: prompt
           }
-        ],
-        response_format: { type: "json_object" } // Assuming XenAI supports this, adjust if not
+        ]
       }),
     });
 
